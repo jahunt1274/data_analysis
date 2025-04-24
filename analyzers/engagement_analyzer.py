@@ -21,6 +21,20 @@ from ..data.models.enums import (
     MetricType,
 )
 
+# Import utility functions
+from ..utils.common_utils import (
+    generate_time_periods,
+    find_common_subsequences,
+    calculate_summary_statistics,
+    classify_engagement_level,
+)
+from ..utils.data_processing_utils import (
+    extract_timestamps_from_steps,
+    group_steps_into_sessions,
+    categorize_session_lengths,
+    get_activity_metrics_by_time,
+)
+
 
 class EngagementAnalyzer:
     """
@@ -105,23 +119,23 @@ class EngagementAnalyzer:
                         ideas_with_steps += 1
                     step_count += len(steps)
 
-            # Calculate engagement score (simplified version)
+            # Calculate engagement score using weighted component scores
             idea_score = min(1.0, idea_count / custom_thresholds["ideas"][0])
             step_score = min(1.0, step_count / custom_thresholds["steps"][0])
-
-            # Combined engagement score (weighted average)
             engagement_score = (idea_score * 0.4) + (step_score * 0.6)
 
+            # Utility
             # Determine engagement level
-            if (
-                idea_count >= custom_thresholds["ideas"][0]
-                or step_count >= custom_thresholds["steps"][0]
-            ):
+            metrics = {
+                "idea_count": idea_count,
+                "step_count": step_count,
+            }
+            engagement_level_str = classify_engagement_level(metrics, custom_thresholds)
+
+            # Convert string level to enum
+            if engagement_level_str == "high":
                 level = UserEngagementLevel.HIGH
-            elif (
-                idea_count >= custom_thresholds["ideas"][1]
-                or step_count >= custom_thresholds["steps"][1]
-            ):
+            elif engagement_level_str == "medium":
                 level = UserEngagementLevel.MEDIUM
             else:
                 level = UserEngagementLevel.LOW
@@ -190,8 +204,9 @@ class EngagementAnalyzer:
         if not end_date:
             end_date = datetime.now()
 
+        # Utility
         # Initialize time periods based on interval
-        time_periods = self._generate_time_periods(start_date, end_date, interval)
+        time_periods = generate_time_periods(start_date, end_date, interval)
 
         # Initialize result data structure
         result = {
@@ -762,11 +777,12 @@ class EngagementAnalyzer:
                     idea_id = idea.id.oid if hasattr(idea.id, "oid") else str(idea.id)
                     steps = self._data_repo.steps.find_by_idea_id(idea_id)
 
-                    for step in steps:
-                        if step.get_creation_date():
-                            activities.append(
-                                ("step_creation", step.get_creation_date(), step)
-                            )
+                    # Utility
+                    # Extract timestamps
+                    step_timestamps = extract_timestamps_from_steps(steps)
+                    for i, timestamp in enumerate(step_timestamps):
+                        if timestamp:
+                            activities.append(("step_creation", timestamp, steps[i]))
 
             # Sort activities by timestamp
             activities.sort(key=lambda x: x[1])
@@ -775,102 +791,70 @@ class EngagementAnalyzer:
             if len(activities) < min_activity_count:
                 continue
 
-            # Identify burst periods
+            # Get steps for session analysis
+            all_user_steps = []
+            for idea in ideas:
+                if idea.id:
+                    idea_id = idea.id.oid if hasattr(idea.id, "oid") else str(idea.id)
+                    steps = self._data_repo.steps.find_by_idea_id(idea_id)
+                    all_user_steps.extend(steps)
+
+            # Utility
+            # Group steps into sessions
+            # Converting burst_window from hours to minutes
+            sessions = group_steps_into_sessions(all_user_steps, burst_window * 60)
+
+            # Process each session as a potential burst
             user_bursts = []
-            current_burst = []
+            for session in sessions:
+                if len(session["steps"]) >= min_activity_count:
+                    # Create burst data
+                    activities_in_burst = []
+                    for step in session["steps"]:
+                        if step.get_creation_date():
+                            activities_in_burst.append(
+                                ("step_creation", step.get_creation_date(), step)
+                            )
 
-            for i, (activity_type, timestamp, entity) in enumerate(activities):
-                if not current_burst:
-                    # Start a new burst
-                    current_burst = [(activity_type, timestamp, entity)]
-                elif (timestamp - current_burst[-1][1]) <= burst_window_delta:
-                    # Add to current burst
-                    current_burst.append((activity_type, timestamp, entity))
-                else:
-                    # End current burst if it has enough activities
-                    if len(current_burst) >= min_activity_count:
-                        burst_start = current_burst[0][1]
-                        burst_end = current_burst[-1][1]
-                        burst_duration = (
-                            burst_end - burst_start
-                        ).total_seconds() / 3600  # Hours
+                    # Sort activities by timestamp
+                    activities_in_burst.sort(key=lambda x: x[1])
 
-                        user_bursts.append(
-                            {
-                                "start_time": burst_start,
-                                "end_time": burst_end,
-                                "duration_hours": burst_duration,
-                                "activity_count": len(current_burst),
-                                "activities": current_burst,
-                            }
-                        )
-
-                        # Update distribution counts
-                        result["burst_hour_distribution"][burst_start.hour] += 1
-                        result["burst_day_distribution"][
-                            burst_start.strftime("%A")
-                        ] += 1
-
-                        # Categorize burst length
-                        if burst_duration <= 1:
-                            length_category = "<1h"
-                        elif burst_duration <= 3:
-                            length_category = "1-3h"
-                        elif burst_duration <= 6:
-                            length_category = "3-6h"
-                        elif burst_duration <= 12:
-                            length_category = "6-12h"
-                        else:
-                            length_category = ">12h"
-
-                        result["burst_length_distribution"][length_category] += 1
-
-                        # Update totals
-                        total_bursts += 1
-                        total_burst_activities += len(current_burst)
-
-                    # Start a new burst
-                    current_burst = [(activity_type, timestamp, entity)]
-
-            # Check if the last burst is valid
-            if len(current_burst) >= min_activity_count:
-                burst_start = current_burst[0][1]
-                burst_end = current_burst[-1][1]
-                burst_duration = (
-                    burst_end - burst_start
-                ).total_seconds() / 3600  # Hours
-
-                user_bursts.append(
-                    {
-                        "start_time": burst_start,
-                        "end_time": burst_end,
-                        "duration_hours": burst_duration,
-                        "activity_count": len(current_burst),
-                        "activities": current_burst,
+                    # Create burst data
+                    burst_data = {
+                        "start_time": session["start_time"],
+                        "end_time": session["end_time"],
+                        "duration_hours": session["duration_minutes"]
+                        / 60,  # Convert to hours
+                        "activity_count": len(session["steps"]),
+                        "activities": activities_in_burst,
                     }
-                )
 
-                # Update distribution counts
-                result["burst_hour_distribution"][burst_start.hour] += 1
-                result["burst_day_distribution"][burst_start.strftime("%A")] += 1
+                    user_bursts.append(burst_data)
 
-                # Categorize burst length
-                if burst_duration <= 1:
-                    length_category = "<1h"
-                elif burst_duration <= 3:
-                    length_category = "1-3h"
-                elif burst_duration <= 6:
-                    length_category = "3-6h"
-                elif burst_duration <= 12:
-                    length_category = "6-12h"
-                else:
-                    length_category = ">12h"
+                    # Update distribution counts
+                    result["burst_hour_distribution"][session["start_time"].hour] += 1
+                    result["burst_day_distribution"][
+                        session["start_time"].strftime("%A")
+                    ] += 1
 
-                result["burst_length_distribution"][length_category] += 1
+                    # Categorize burst length
+                    duration_hours = session["duration_minutes"] / 60
+                    if duration_hours <= 1:
+                        length_category = "<1h"
+                    elif duration_hours <= 3:
+                        length_category = "1-3h"
+                    elif duration_hours <= 6:
+                        length_category = "3-6h"
+                    elif duration_hours <= 12:
+                        length_category = "6-12h"
+                    else:
+                        length_category = ">12h"
 
-                # Update totals
-                total_bursts += 1
-                total_burst_activities += len(current_burst)
+                    result["burst_length_distribution"][length_category] += 1
+
+                    # Update totals
+                    total_bursts += 1
+                    total_burst_activities += len(session["steps"])
 
             # Add user burst data if any bursts were found
             if user_bursts:
@@ -887,9 +871,29 @@ class EngagementAnalyzer:
         if user_with_bursts > 0:
             result["avg_bursts_per_user"] = total_bursts / user_with_bursts
 
+        # Utility
         # Extract general burst patterns
-        burst_patterns = self._analyze_burst_patterns(result["user_bursts"])
-        result["burst_patterns"] = burst_patterns
+        if result["user_bursts"]:
+            # Get all step sequences from bursts
+            step_sequences = []
+            for user_email, data in result["user_bursts"].items():
+                for burst in data["bursts"]:
+                    # Extract step names from activities
+                    steps = []
+                    for activity in burst["activities"]:
+                        if activity[0] == "step_creation":
+                            step_entity = activity[2]
+                            if hasattr(step_entity, "step") and step_entity.step:
+                                steps.append(step_entity.step)
+
+                    if len(steps) >= 2:
+                        step_sequences.append(steps)
+
+            # Find common subsequences using utility function
+            if step_sequences:
+                result["burst_patterns"] = find_common_subsequences(
+                    step_sequences, min_length=2
+                )
 
         # Convert defaultdicts to regular dicts for serialization
         result["burst_hour_distribution"] = dict(result["burst_hour_distribution"])
@@ -1446,164 +1450,6 @@ class EngagementAnalyzer:
 
         return result
 
-    def _generate_time_periods(
-        self, start_date: datetime, end_date: datetime, interval: str
-    ) -> List[Tuple[datetime, datetime, str]]:
-        """
-        Generate time periods between start and end dates.
-
-        Args:
-            start_date: Start date
-            end_date: End date
-            interval: Time interval ('day', 'week', 'month')
-
-        Returns:
-            List of (period_start, period_end, period_label) tuples
-        """
-        periods = []
-        current = start_date
-
-        if interval == "day":
-            while current <= end_date:
-                period_end = datetime(
-                    current.year, current.month, current.day, 23, 59, 59
-                )
-                label = current.strftime("%Y-%m-%d")
-                periods.append((current, period_end, label))
-                current = current + timedelta(days=1)
-                current = datetime(current.year, current.month, current.day, 0, 0, 0)
-
-        elif interval == "week":
-            # Start from the beginning of the week
-            current = current - timedelta(days=current.weekday())
-            current = datetime(current.year, current.month, current.day, 0, 0, 0)
-
-            while current <= end_date:
-                period_end = current + timedelta(
-                    days=6, hours=23, minutes=59, seconds=59
-                )
-                label = f'{current.strftime("%Y-%m-%d")} to {period_end.strftime("%Y-%m-%d")}'
-                periods.append((current, period_end, label))
-                current = current + timedelta(days=7)
-
-        elif interval == "month":
-            # Start from the beginning of the month
-            current = datetime(current.year, current.month, 1, 0, 0, 0)
-
-            while current <= end_date:
-                # Find the last day of the month
-                if current.month == 12:
-                    next_month = datetime(current.year + 1, 1, 1)
-                else:
-                    next_month = datetime(current.year, current.month + 1, 1)
-
-                period_end = next_month - timedelta(seconds=1)
-                label = current.strftime("%Y-%m")
-                periods.append((current, period_end, label))
-                current = next_month
-
-        return periods
-
-    def _analyze_burst_patterns(
-        self, user_bursts: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
-        """
-        Analyze burst patterns across users to identify common patterns.
-
-        Args:
-            user_bursts: User burst data from calculate_user_burst_activity
-
-        Returns:
-            List of identified burst patterns
-        """
-        # Extract all bursts
-        all_bursts = []
-        for user_email, data in user_bursts.items():
-            for burst in data["bursts"]:
-                burst_copy = burst.copy()
-                burst_copy["user_email"] = user_email
-                all_bursts.append(burst_copy)
-
-        # Skip pattern analysis if not enough bursts
-        if len(all_bursts) < 3:
-            return []
-
-        # Identify patterns
-        patterns = []
-
-        # Pattern 1: Time of day patterns
-        hour_counts = defaultdict(int)
-        for burst in all_bursts:
-            hour = burst["start_time"].hour
-            hour_counts[hour] += 1
-
-        # Find hours with more than average bursts
-        avg_bursts_per_hour = len(all_bursts) / 24
-        peak_hours = [
-            hour
-            for hour, count in hour_counts.items()
-            if count > avg_bursts_per_hour * 1.5
-        ]
-
-        if peak_hours:
-            patterns.append(
-                {
-                    "pattern_type": "time_of_day",
-                    "description": "Peak activity hours",
-                    "peak_hours": peak_hours,
-                    "burst_count_by_hour": dict(hour_counts),
-                }
-            )
-
-        # Pattern 2: Duration patterns
-        duration_groups = {
-            "short": [b for b in all_bursts if b["duration_hours"] <= 1],
-            "medium": [b for b in all_bursts if 1 < b["duration_hours"] <= 3],
-            "long": [b for b in all_bursts if b["duration_hours"] > 3],
-        }
-
-        patterns.append(
-            {
-                "pattern_type": "duration",
-                "description": "Burst duration patterns",
-                "short_bursts": len(duration_groups["short"]),
-                "medium_bursts": len(duration_groups["medium"]),
-                "long_bursts": len(duration_groups["long"]),
-                "avg_duration": sum(b["duration_hours"] for b in all_bursts)
-                / len(all_bursts),
-            }
-        )
-
-        # Pattern 3: Sequential step patterns
-        step_sequences = []
-
-        for burst in all_bursts:
-            # Collect step names in sequence
-            steps = []
-            for activity in burst["activities"]:
-                if activity[0] == "step_creation":
-                    step_entity = activity[2]
-                    if hasattr(step_entity, "step") and step_entity.step:
-                        steps.append(step_entity.step)
-
-            if len(steps) >= 2:
-                step_sequences.append(steps)
-
-        # Find common sub-sequences
-        if step_sequences:
-            common_sequences = self._find_common_subsequences(step_sequences)
-
-            if common_sequences:
-                patterns.append(
-                    {
-                        "pattern_type": "step_sequence",
-                        "description": "Common step sequences",
-                        "common_sequences": common_sequences,
-                    }
-                )
-
-        return patterns
-
     def _find_common_subsequences(
         self, sequences: List[List[str]], min_length: int = 2
     ) -> List[Dict[str, Any]]:
@@ -1868,119 +1714,108 @@ class EngagementAnalyzer:
         if len(steps_with_dates) < 10:
             return {"error": "Insufficient data for pattern analysis"}
 
-        # Time of day analysis
-        hour_counts = defaultdict(int)
-        for step in steps_with_dates:
-            hour = step.get_creation_date().hour
-            hour_counts[hour] += 1
+        # Utility
+        # Time-based analysis
+        time_metrics = get_activity_metrics_by_time(steps_with_dates)
 
-        # Group hours into time periods
-        time_periods = {
-            "early_morning": sum(hour_counts.get(h, 0) for h in range(5, 9)),
-            "morning": sum(hour_counts.get(h, 0) for h in range(9, 12)),
-            "afternoon": sum(hour_counts.get(h, 0) for h in range(12, 17)),
-            "evening": sum(hour_counts.get(h, 0) for h in range(17, 21)),
-            "night": sum(hour_counts.get(h, 0) for h in range(21, 24))
-            + sum(hour_counts.get(h, 0) for h in range(0, 5)),
-        }
-
-        # Add to result
+        # Format the results
         result["time_of_day"] = {
-            "hour_distribution": dict(hour_counts),
-            "period_distribution": time_periods,
-            "peak_hour": (
-                max(hour_counts.items(), key=lambda x: x[1])[0] if hour_counts else None
-            ),
-        }
-
-        # Day of week analysis
-        day_counts = defaultdict(int)
-        weekend_count = 0
-        weekday_count = 0
-
-        for step in steps_with_dates:
-            day_name = step.get_creation_date().strftime("%A")
-            day_counts[day_name] += 1
-
-            # Track weekend vs weekday
-            weekday = step.get_creation_date().weekday()
-            if weekday >= 5:  # Saturday (5) and Sunday (6)
-                weekend_count += 1
-            else:
-                weekday_count += 1
-
-        # Add to result
-        result["day_of_week"] = {
-            "day_distribution": dict(day_counts),
-            "weekend_vs_weekday": {
-                "weekend": weekend_count,
-                "weekday": weekday_count,
-                "weekend_percentage": (
-                    weekend_count / len(steps_with_dates) if steps_with_dates else 0
+            "hour_distribution": {
+                str(h): time_metrics["hourly_distribution"].get(str(h), 0)
+                for h in range(24)
+            },
+            "period_distribution": {
+                "early_morning": sum(
+                    time_metrics["hourly_distribution"].get(str(h), 0)
+                    for h in range(5, 9)
+                ),
+                "morning": sum(
+                    time_metrics["hourly_distribution"].get(str(h), 0)
+                    for h in range(9, 12)
+                ),
+                "afternoon": sum(
+                    time_metrics["hourly_distribution"].get(str(h), 0)
+                    for h in range(12, 17)
+                ),
+                "evening": sum(
+                    time_metrics["hourly_distribution"].get(str(h), 0)
+                    for h in range(17, 21)
+                ),
+                "night": sum(
+                    time_metrics["hourly_distribution"].get(str(h), 0)
+                    for h in range(21, 24)
+                )
+                + sum(
+                    time_metrics["hourly_distribution"].get(str(h), 0)
+                    for h in range(0, 5)
                 ),
             },
-            "busiest_day": (
-                max(day_counts.items(), key=lambda x: x[1])[0] if day_counts else None
-            ),
+            "peak_hour": max(
+                [(h, v) for h, v in time_metrics["hourly_distribution"].items()],
+                key=lambda x: x[1],
+                default=(None, 0),
+            )[0],
         }
 
-        # Session length analysis (using session_id if available)
-        session_lengths = []
-        sessions = {}
+        result["day_of_week"] = {
+            "day_distribution": time_metrics["daily_distribution"],
+            "weekend_vs_weekday": {
+                "weekend": sum(
+                    time_metrics["daily_distribution"].get(day, 0)
+                    for day in ["Saturday", "Sunday"]
+                ),
+                "weekday": sum(
+                    time_metrics["daily_distribution"].get(day, 0)
+                    for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+                ),
+            },
+            "busiest_day": max(
+                [(d, v) for d, v in time_metrics["daily_distribution"].items()],
+                key=lambda x: x[1],
+                default=(None, 0),
+            )[0],
+        }
 
-        for step in steps_with_dates:
-            if step.session_id:
-                session_id = (
-                    step.session_id.oid
-                    if hasattr(step.session_id, "oid")
-                    else str(step.session_id)
-                )
+        # Calculate weekend percentage
+        if (
+            result["day_of_week"]["weekend_vs_weekday"]["weekend"]
+            + result["day_of_week"]["weekend_vs_weekday"]["weekday"]
+            > 0
+        ):
+            total = (
+                result["day_of_week"]["weekend_vs_weekday"]["weekend"]
+                + result["day_of_week"]["weekend_vs_weekday"]["weekday"]
+            )
+            result["day_of_week"]["weekend_vs_weekday"]["weekend_percentage"] = (
+                result["day_of_week"]["weekend_vs_weekday"]["weekend"] / total
+            )
+        else:
+            result["day_of_week"]["weekend_vs_weekday"]["weekend_percentage"] = 0
 
-                if session_id not in sessions:
-                    sessions[session_id] = {
-                        "steps": [],
-                        "start_time": step.get_creation_date(),
-                        "end_time": step.get_creation_date(),
-                    }
+        # Utility
+        # Group steps into sessions
+        sessions = group_steps_into_sessions(steps_with_dates)
 
-                # Add step to session
-                sessions[session_id]["steps"].append(step)
+        # Utility
+        # Categorize session lengths
+        duration_categories = categorize_session_lengths(sessions)
 
-                # Update session end time if this step is later
-                if step.get_creation_date() > sessions[session_id]["end_time"]:
-                    sessions[session_id]["end_time"] = step.get_creation_date()
-
-        # Calculate session durations
-        if sessions:
-            for session_id, session in sessions.items():
-                duration_minutes = (
-                    session["end_time"] - session["start_time"]
-                ).total_seconds() / 60
-                session_lengths.append(duration_minutes)
-
-            # Group into duration categories
-            duration_categories = {
-                "under_5min": sum(1 for d in session_lengths if d < 5),
-                "5_15min": sum(1 for d in session_lengths if 5 <= d < 15),
-                "15_30min": sum(1 for d in session_lengths if 15 <= d < 30),
-                "30_60min": sum(1 for d in session_lengths if 30 <= d < 60),
-                "over_60min": sum(1 for d in session_lengths if d >= 60),
-            }
+        # Calculate session statistics
+        session_lengths = [session["duration_minutes"] for session in sessions]
+        if session_lengths:
+            session_stats = calculate_summary_statistics(session_lengths)
 
             result["session_length"] = {
-                "avg_duration_minutes": (
-                    sum(session_lengths) / len(session_lengths)
-                    if session_lengths
-                    else 0
-                ),
+                "avg_duration_minutes": session_stats["mean"],
                 "duration_categories": duration_categories,
                 "session_count": len(sessions),
             }
         else:
-            # Alternative: group steps by owner and timestamp proximity
-            result["session_length"] = self._estimate_sessions_from_steps(
-                steps_with_dates
-            )
+            result["session_length"] = {
+                "avg_duration_minutes": 0,
+                "duration_categories": duration_categories,
+                "session_count": 0,
+            }
 
         # Step intervals (time between consecutive steps)
         step_intervals = self._calculate_step_intervals(steps_with_dates)
@@ -1989,100 +1824,42 @@ class EngagementAnalyzer:
         # Usage consistency analysis
         result["usage_consistency"] = self._analyze_usage_consistency(steps_with_dates)
 
-        # Common step sequences
-        result["common_sequences"] = self._analyze_step_sequences(steps_with_dates)
+        # Extract step sequences for analysis
+        step_sequences = []
+        steps_by_idea = defaultdict(list)
+
+        for step in steps_with_dates:
+            if step.idea_id and step.step:
+                idea_id = (
+                    step.idea_id.oid
+                    if hasattr(step.idea_id, "oid")
+                    else str(step.idea_id)
+                )
+                steps_by_idea[idea_id].append(step)
+
+        # Extract sequences of steps
+        for idea_id, idea_steps in steps_by_idea.items():
+            # Skip ideas with too few steps
+            if len(idea_steps) < 3:
+                continue
+
+            # Sort steps by creation date
+            sorted_steps = sorted(idea_steps, key=lambda s: s.get_creation_date())
+
+            # Extract step names
+            step_names = [step.step for step in sorted_steps]
+            step_sequences.append(step_names)
+
+        # Utility
+        # Find common subsequences
+        if len(step_sequences) >= 3:  # Need at least 3 sequences to find patterns
+            result["common_sequences"] = find_common_subsequences(
+                step_sequences, min_length=3
+            )
+        else:
+            result["common_sequences"] = []
 
         return result
-
-    def _estimate_sessions_from_steps(
-        self, steps: List[Any], session_gap_threshold: int = 30  # Minutes
-    ) -> Dict[str, Any]:
-        """
-        Estimate sessions from steps when session_id is not available.
-
-        Args:
-            steps: List of steps with creation dates
-            session_gap_threshold: Minimum gap in minutes to consider a new session
-
-        Returns:
-            Dict with session length analysis
-        """
-        # Group steps by owner
-        steps_by_owner = defaultdict(list)
-
-        for step in steps:
-            if step.owner:
-                steps_by_owner[step.owner].append(step)
-
-        # Identify sessions for each owner
-        all_session_lengths = []
-        session_count = 0
-
-        for owner, owner_steps in steps_by_owner.items():
-            # Sort steps by creation date
-            sorted_steps = sorted(owner_steps, key=lambda s: s.get_creation_date())
-
-            # Identify sessions based on time gaps
-            sessions = []
-            current_session = []
-
-            for step in sorted_steps:
-                if not current_session:
-                    current_session = [step]
-                else:
-                    # Check if this step is within the threshold of the last step
-                    time_gap = (
-                        step.get_creation_date()
-                        - current_session[-1].get_creation_date()
-                    ).total_seconds() / 60
-
-                    if time_gap <= session_gap_threshold:
-                        # Part of the current session
-                        current_session.append(step)
-                    else:
-                        # Start a new session
-                        if len(current_session) > 0:
-                            sessions.append(current_session)
-                        current_session = [step]
-
-            # Add the last session if it exists
-            if current_session:
-                sessions.append(current_session)
-
-            # Calculate session durations
-            for session in sessions:
-                if len(session) > 0:
-                    start_time = session[0].get_creation_date()
-                    end_time = session[-1].get_creation_date()
-
-                    # Add a minimum duration for single-step sessions
-                    if start_time == end_time:
-                        duration_minutes = 5  # Assume at least 5 minutes
-                    else:
-                        duration_minutes = (end_time - start_time).total_seconds() / 60
-
-                    all_session_lengths.append(duration_minutes)
-                    session_count += 1
-
-        # Group into duration categories
-        duration_categories = {
-            "under_5min": sum(1 for d in all_session_lengths if d < 5),
-            "5_15min": sum(1 for d in all_session_lengths if 5 <= d < 15),
-            "15_30min": sum(1 for d in all_session_lengths if 15 <= d < 30),
-            "30_60min": sum(1 for d in all_session_lengths if 30 <= d < 60),
-            "over_60min": sum(1 for d in all_session_lengths if d >= 60),
-        }
-
-        return {
-            "avg_duration_minutes": (
-                sum(all_session_lengths) / len(all_session_lengths)
-                if all_session_lengths
-                else 0
-            ),
-            "duration_categories": duration_categories,
-            "session_count": session_count,
-            "estimation_method": "time_gap_based",
-        }
 
     def _calculate_step_intervals(self, steps: List[Any]) -> Dict[str, Any]:
         """
@@ -2241,46 +2018,3 @@ class EngagementAnalyzer:
             },
             "user_count": len(user_metrics),
         }
-
-    def _analyze_step_sequences(self, steps: List[Any]) -> List[Dict[str, Any]]:
-        """
-        Analyze common sequences of steps that users follow.
-
-        Args:
-            steps: List of steps with creation dates
-
-        Returns:
-            List of common step sequence data
-        """
-        # Group steps by idea_id
-        steps_by_idea = defaultdict(list)
-
-        for step in steps:
-            if step.idea_id and step.step:
-                idea_id = (
-                    step.idea_id.oid
-                    if hasattr(step.idea_id, "oid")
-                    else str(step.idea_id)
-                )
-                steps_by_idea[idea_id].append(step)
-
-        # Extract sequences of steps
-        step_sequences = []
-
-        for idea_id, idea_steps in steps_by_idea.items():
-            # Skip ideas with too few steps
-            if len(idea_steps) < 3:
-                continue
-
-            # Sort steps by creation date
-            sorted_steps = sorted(idea_steps, key=lambda s: s.get_creation_date())
-
-            # Extract step names
-            step_names = [step.step for step in sorted_steps]
-            step_sequences.append(step_names)
-
-        # Find common subsequences
-        if len(step_sequences) >= 3:  # Need at least 3 sequences to find patterns
-            return self._find_common_subsequences(step_sequences, min_length=3)
-
-        return []
