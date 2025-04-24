@@ -1,0 +1,21 @@
+"""
+Repositories package for the data analysis system.
+
+This package contains all the repository classes used for
+accessing and analyzing the static JetPack/Orbit tool usage data.
+"""
+
+from .base_repository import BaseRepository
+from repositories.idea_repository import IdeaRepository
+from repositories.step_repository import StepRepository
+from repositories.team_repository import TeamRepository
+from repositories.user_repository import UserRepository
+
+__all__ = [
+    "BaseRepository",
+    "UserRepository",
+    "IdeaRepository",
+    "StepRepository",
+    "TeamRepository",
+    "CourseRepository",
+]
