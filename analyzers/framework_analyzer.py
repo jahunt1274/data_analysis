@@ -44,17 +44,6 @@ from ..utils.framework_analysis_utils import (
 )
 
 
-class ProgressionType(str, Enum):
-    """Types of progression patterns through frameworks."""
-
-    LINEAR = "linear"  # Steps completed in order (1, 2, 3, 4...)
-    JUMPING = "jumping"  # Skipping steps (1, 3, 5...)
-    NONLINEAR = "nonlinear"  # Out of order steps (3, 1, 4, 2...)
-    FOCUSED = "focused"  # Concentrating on specific areas
-    COMPREHENSIVE = "comprehensive"  # Completing most steps
-    MINIMAL = "minimal"  # Completing very few steps
-
-
 class FrameworkAnalyzer:
     """
     Analyzer for framework progression in the JetPack/Orbit tool.

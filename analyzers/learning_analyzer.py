@@ -13,33 +13,32 @@ from collections import defaultdict
 
 from ..data.data_repository import DataRepository
 from ..data.models.enums import (
+    DisciplinedEntrepreneurshipStep,
+    FrameworkType,
     Semester,
     ToolVersion,
     UserEngagementLevel,
-    FrameworkType,
-    DisciplinedEntrepreneurshipStep,
+    UserType,
 )
 from ..data.models.course_model import CourseEvaluation
 from ..utils.common_utils import (
     calculate_correlation,
-    calculate_summary_statistics,
     calculate_distribution_percentages,
+    calculate_summary_statistics,
     calculate_time_differences,
-    group_values_into_ranges,
-    group_by_time_period,
 )
 from ..utils.framework_analysis_utils import (
     analyze_framework_bottlenecks,
-    identify_high_impact_steps,
-    classify_progression_pattern,
     analyze_step_relationships,
+    classify_progression_pattern,
+    identify_high_impact_steps,
 )
 from ..utils.data_processing_utils import (
+    get_activity_metrics_by_time,
     get_step_completion_data,
     group_steps_into_sessions,
-    get_activity_metrics_by_time,
-    filter_steps_by_framework,
     extract_timestamps_from_steps,
+    filter_steps_by_framework,
 )
 
 
