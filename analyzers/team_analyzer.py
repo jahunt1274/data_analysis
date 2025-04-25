@@ -18,6 +18,22 @@ from ..data.models.enums import (
     DisciplinedEntrepreneurshipStep,
     StartupTacticsStep,
 )
+from ..utils.common_utils import (
+    calculate_correlation,
+    calculate_gini_coefficient,
+    calculate_summary_statistics,
+    calculate_distribution_percentages,
+    is_linear_progression,
+    get_step_display_name,
+)
+from ..utils.data_processing_utils import (
+    extract_timestamps_from_steps,
+    extract_user_emails_from_team,
+    identify_shared_ideas,
+    get_activity_metrics_by_time,
+    group_steps_into_sessions,
+    categorize_session_lengths,
+)
 
 
 class TeamAnalyzer:
@@ -78,7 +94,7 @@ class TeamAnalyzer:
         team_member_emails = set()
 
         for team in all_teams:
-            team_member_emails.update(team.get_member_emails())
+            team_member_emails.update(extract_user_emails_from_team(team))
 
         # Split users into team members and individuals
         team_users = [
@@ -163,7 +179,10 @@ class TeamAnalyzer:
                 teams_to_analyze = [
                     team
                     for team in all_teams
-                    if any(email in course_emails for email in team.get_member_emails())
+                    if any(
+                        email in course_emails
+                        for email in extract_user_emails_from_team(team)
+                    )
                 ]
             else:
                 teams_to_analyze = self._data_repo.teams.get_all()
@@ -277,7 +296,10 @@ class TeamAnalyzer:
             teams_to_analyze = [
                 team
                 for team in all_teams
-                if any(email in course_emails for email in team.get_member_emails())
+                if any(
+                    email in course_emails
+                    for email in extract_user_emails_from_team(team)
+                )
                 and team.get_member_count() >= min_team_size
             ]
         else:
@@ -380,7 +402,10 @@ class TeamAnalyzer:
             teams_to_analyze = [
                 team
                 for team in all_teams
-                if any(email in course_emails for email in team.get_member_emails())
+                if any(
+                    email in course_emails
+                    for email in extract_user_emails_from_team(team)
+                )
             ]
         else:
             teams_to_analyze = self._data_repo.teams.get_all()
@@ -469,7 +494,10 @@ class TeamAnalyzer:
             teams_to_analyze = [
                 team
                 for team in all_teams
-                if any(email in course_emails for email in team.get_member_emails())
+                if any(
+                    email in course_emails
+                    for email in extract_user_emails_from_team(team)
+                )
             ]
         else:
             teams_to_analyze = self._data_repo.teams.get_all()
@@ -477,7 +505,7 @@ class TeamAnalyzer:
         # Get individual users (those not on teams)
         team_member_emails = set()
         for team in teams_to_analyze:
-            team_member_emails.update(team.get_member_emails())
+            team_member_emails.update(extract_user_emails_from_team(team))
 
         if course_id:
             individual_users = [
@@ -600,13 +628,9 @@ class TeamAnalyzer:
         }
 
         # Calculate engagement distribution
-        metrics["engagement_distribution"] = {
-            level: {
-                "count": count,
-                "percentage": count / len(users) if users else 0,
-            }
-            for level, count in engagement_levels.items()
-        }
+        metrics["engagement_distribution"] = calculate_distribution_percentages(
+            engagement_levels
+        )
 
         # Calculate activity metrics (e.g., when users are active)
         metrics["activity_metrics"] = self._calculate_activity_metrics(users)
@@ -634,29 +658,7 @@ class TeamAnalyzer:
         if not users:
             return metrics
 
-        # Track activity by day and hour
-        day_counts = defaultdict(int)
-        hour_counts = defaultdict(int)
-
-        # Track session durations
-        session_durations = []
-
-        # Initialize with zeros
-        for day in [
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday",
-        ]:
-            day_counts[day] = 0
-
-        for hour in range(24):
-            hour_counts[hour] = 0
-
-        # Analyze steps for activity patterns
+        # Collect steps for activity patterns
         all_steps = []
 
         for user in users:
@@ -667,95 +669,32 @@ class TeamAnalyzer:
             user_steps = self._data_repo.steps.find_by_owner(user.email)
             all_steps.extend(user_steps)
 
-        # Filter steps with valid creation dates
-        steps_with_dates = [step for step in all_steps if step.get_creation_date()]
+        # Skip if no steps
+        if not all_steps:
+            return metrics
 
-        # Process step timestamps
-        for step in steps_with_dates:
-            # Track day of week
-            day_name = step.get_creation_date().strftime("%A")
-            day_counts[day_name] += 1
+        # Use utility function for activity metrics by time
+        time_metrics = get_activity_metrics_by_time(all_steps)
+        metrics.update(time_metrics)
 
-            # Track hour of day
-            hour = step.get_creation_date().hour
-            hour_counts[hour] += 1
+        # Group steps into sessions and analyze session lengths
+        sessions = group_steps_into_sessions(all_steps)
+        session_categories = categorize_session_lengths(sessions)
 
-        # Calculate session durations if session IDs are available
-        sessions = {}
-
-        for step in steps_with_dates:
-            if step.session_id:
-                session_id = (
-                    step.session_id.oid
-                    if hasattr(step.session_id, "oid")
-                    else str(step.session_id)
-                )
-
-                if session_id not in sessions:
-                    sessions[session_id] = {
-                        "start_time": step.get_creation_date(),
-                        "end_time": step.get_creation_date(),
-                    }
-
-                # Update session end time if this step is later
-                elif step.get_creation_date() > sessions[session_id]["end_time"]:
-                    sessions[session_id]["end_time"] = step.get_creation_date()
-
-        # Calculate durations
-        for session in sessions.values():
-            duration_minutes = (
-                session["end_time"] - session["start_time"]
-            ).total_seconds() / 60
-            session_durations.append(duration_minutes)
-
-        # Normalize distributions
-        total_steps = len(steps_with_dates)
-
-        if total_steps > 0:
-            metrics["daily_distribution"] = {
-                day: count / total_steps for day, count in day_counts.items()
-            }
-
-            metrics["hourly_distribution"] = {
-                str(hour): count / total_steps for hour, count in hour_counts.items()
-            }
-
-        # Calculate session length distribution
-        if session_durations:
-            session_groups = {
-                "under_5min": 0,
-                "5_15min": 0,
-                "15_30min": 0,
-                "30_60min": 0,
-                "1_3hr": 0,
-                "over_3hr": 0,
-            }
-
-            for duration in session_durations:
-                if duration < 5:
-                    session_groups["under_5min"] += 1
-                elif duration < 15:
-                    session_groups["5_15min"] += 1
-                elif duration < 30:
-                    session_groups["15_30min"] += 1
-                elif duration < 60:
-                    session_groups["30_60min"] += 1
-                elif duration < 180:
-                    session_groups["1_3hr"] += 1
-                else:
-                    session_groups["over_3hr"] += 1
-
-            # Normalize
-            total_sessions = len(session_durations)
-
+        # Normalize session distribution
+        total_sessions = sum(session_categories.values())
+        if total_sessions > 0:
             metrics["session_length_distribution"] = {
-                group: count / total_sessions for group, count in session_groups.items()
+                category: count / total_sessions
+                for category, count in session_categories.items()
             }
 
-            # Add average session length
-            metrics["avg_session_length_minutes"] = (
-                sum(session_durations) / total_sessions
-            )
+            # Calculate average session length
+            session_durations = [session["duration_minutes"] for session in sessions]
+            if session_durations:
+                metrics["avg_session_length_minutes"] = sum(session_durations) / len(
+                    session_durations
+                )
 
         return metrics
 
@@ -1040,7 +979,7 @@ class TeamAnalyzer:
         }
 
         # Get member emails
-        member_emails = team.get_member_emails()
+        member_emails = extract_user_emails_from_team(team)
 
         if not member_emails:
             return team_metrics
@@ -1078,37 +1017,16 @@ class TeamAnalyzer:
             team_metrics["collaboration_level"] = "single_member"
             return team_metrics
 
-        # Identify shared ideas (where multiple team members contribute steps)
-        shared_ideas = []
+        # Identify shared ideas using utility function
+        shared_ideas = identify_shared_ideas(
+            member_emails, all_ideas, self._data_repo.steps
+        )
 
-        for idea in all_ideas:
-            if not idea.id:
-                continue
-
-            idea_id = idea.id.oid if hasattr(idea.id, "oid") else str(idea.id)
-
-            # Get all steps for this idea
-            idea_steps = self._data_repo.steps.find_by_idea_id(idea_id)
-
-            # Get unique contributors to this idea
-            contributors = set()
-            for step in idea_steps:
-                if step.owner and step.owner in member_emails:
-                    contributors.add(step.owner)
-
-                    # Add to member's steps
-                    if step.owner in member_steps:
-                        member_steps[step.owner].append(step)
-
-            # Check if multiple team members contributed
-            if len(contributors) > 1:
-                shared_ideas.append(
-                    {
-                        "idea_id": idea_id,
-                        "contributors": list(contributors),
-                        "steps": idea_steps,
-                    }
-                )
+        # Add steps to member_steps for each shared idea
+        for shared_idea in shared_ideas:
+            for step in shared_idea["steps"]:
+                if step.owner and step.owner in member_steps:
+                    member_steps[step.owner].append(step)
 
         # Update shared idea count
         team_metrics["shared_idea_count"] = len(shared_ideas)
@@ -1182,22 +1100,15 @@ class TeamAnalyzer:
 
         for idea in shared_ideas:
             # Get steps with timestamps
-            steps_with_timestamps = [
-                step for step in idea["steps"] if step.get_creation_date()
-            ]
+            steps_with_timestamps = extract_timestamps_from_steps(idea["steps"])
 
             if len(steps_with_timestamps) < 2:
                 continue
 
-            # Sort steps by creation date
-            sorted_steps = sorted(
-                steps_with_timestamps, key=lambda s: s.get_creation_date()
-            )
-
             # Group steps by contributor
             steps_by_contributor = defaultdict(list)
-            for step in sorted_steps:
-                if step.owner:
+            for step in idea["steps"]:
+                if step.owner and step.get_creation_date():
                     steps_by_contributor[step.owner].append(step)
 
             # Skip if only one contributor
@@ -1209,9 +1120,11 @@ class TeamAnalyzer:
             contributor_windows = {}
             for contributor, steps in steps_by_contributor.items():
                 if steps:
-                    earliest = min(step.get_creation_date() for step in steps)
-                    latest = max(step.get_creation_date() for step in steps)
-                    contributor_windows[contributor] = (earliest, latest)
+                    timestamps = extract_timestamps_from_steps(steps)
+                    if timestamps:
+                        earliest = min(timestamps)
+                        latest = max(timestamps)
+                        contributor_windows[contributor] = (earliest, latest)
 
             # Check for overlapping time windows
             overlapping = False
@@ -1223,48 +1136,36 @@ class TeamAnalyzer:
                             overlapping = True
                             break
 
-            # Check time proximity of contributions
-            min_gap = float("inf")
-            steps_in_sequence = True
-
-            # Check if steps strictly alternate between contributors
-            current_contributor = sorted_steps[0].owner
-            strictly_alternating = True
-
-            for i in range(1, len(sorted_steps)):
-                next_contributor = sorted_steps[i].owner
-
-                # Check gap between steps
-                time_gap = (
-                    sorted_steps[i].get_creation_date()
-                    - sorted_steps[i - 1].get_creation_date()
-                ).total_seconds() / 3600  # hours
-                min_gap = min(min_gap, time_gap)
-
-                # Check if contributors alternate
-                if next_contributor == current_contributor:
-                    strictly_alternating = False
-
-                current_contributor = next_contributor
-
-            # Determine if synchronous based on minimum gap
-            if min_gap <= sync_threshold_hours:
-                patterns["synchronous_collaboration"] += 1
-            else:
-                patterns["asynchronous_collaboration"] += 1
-
             # Calculate collaboration window (time from first to last step)
-            first_step_time = sorted_steps[0].get_creation_date()
-            last_step_time = sorted_steps[-1].get_creation_date()
-            window_hours = (last_step_time - first_step_time).total_seconds() / 3600
+            all_timestamps = []
+            for steps in steps_by_contributor.values():
+                all_timestamps.extend(extract_timestamps_from_steps(steps))
 
-            collaboration_windows.append(window_hours)
+            if all_timestamps:
+                first_step_time = min(all_timestamps)
+                last_step_time = max(all_timestamps)
+                window_hours = (last_step_time - first_step_time).total_seconds() / 3600
+                collaboration_windows.append(window_hours)
 
-            # Determine if sequential or parallel
-            if strictly_alternating or not overlapping:
-                sequential_count += 1
-            else:
-                parallel_count += 1
+                # Determine if synchronous
+                min_gap = float("inf")
+                sorted_timestamps = sorted(all_timestamps)
+                for i in range(1, len(sorted_timestamps)):
+                    time_gap = (
+                        sorted_timestamps[i] - sorted_timestamps[i - 1]
+                    ).total_seconds() / 3600  # hours
+                    min_gap = min(min_gap, time_gap)
+
+                if min_gap <= sync_threshold_hours:
+                    patterns["synchronous_collaboration"] += 1
+                else:
+                    patterns["asynchronous_collaboration"] += 1
+
+                # Determine if sequential or parallel
+                if overlapping:
+                    parallel_count += 1
+                else:
+                    sequential_count += 1
 
         # Calculate averages
         if collaboration_windows:
@@ -1322,15 +1223,10 @@ class TeamAnalyzer:
             level = metrics.get("collaboration_level", "none")
             collaboration_levels[level] += 1
 
-        # Calculate percentages
-        total_teams = len(team_metrics)
-        summary["collaboration_levels"] = {
-            level: {
-                "count": count,
-                "percentage": count / total_teams if total_teams > 0 else 0,
-            }
-            for level, count in collaboration_levels.items()
-        }
+        # Calculate percentages using utility function
+        summary["collaboration_levels"] = calculate_distribution_percentages(
+            collaboration_levels
+        )
 
         # Analyze member involvement
         member_involvement = {
@@ -1355,10 +1251,11 @@ class TeamAnalyzer:
                 member_involvement["avg_active_ratio"] += active_ratio
 
         # Calculate average
-        if total_teams > 0:
-            member_involvement["avg_active_ratio"] /= total_teams
+        if team_metrics:
+            member_involvement["avg_active_ratio"] /= len(team_metrics)
 
             # Calculate percentages
+            total_teams = len(team_metrics)
             member_involvement["full_team_engagement_rate"] = (
                 member_involvement["full_team_engagement"] / total_teams
             )
@@ -1477,7 +1374,7 @@ class TeamAnalyzer:
 
         for team in teams:
             # Get member emails
-            member_emails = team.get_member_emails()
+            member_emails = extract_user_emails_from_team(team)
 
             if not member_emails:
                 continue
@@ -1493,37 +1390,43 @@ class TeamAnalyzer:
             if not all_ideas:
                 continue
 
-            # Analyze idea ownership and contributions
+            # Use utility function to identify shared ideas
+            shared_ideas = identify_shared_ideas(
+                member_emails, all_ideas, self._data_repo.steps
+            )
+
+            # Analyze ownership patterns and contribution flow
             ownership_contribution = []
 
-            for idea in all_ideas:
-                if not idea.id:
+            for shared_idea in shared_ideas:
+                idea_id = shared_idea["idea_id"]
+
+                # Get the original idea object
+                idea_obj = next(
+                    (
+                        idea
+                        for idea in all_ideas
+                        if str(idea.id.oid if hasattr(idea.id, "oid") else idea.id)
+                        == idea_id
+                    ),
+                    None,
+                )
+
+                if not idea_obj:
                     continue
 
-                idea_id = idea.id.oid if hasattr(idea.id, "oid") else str(idea.id)
-
-                # Get steps for this idea
-                steps = self._data_repo.steps.find_by_idea_id(idea_id)
-
-                # Filter to steps by team members
-                team_steps = [step for step in steps if step.owner in member_emails]
-
-                # Skip if no steps by team members
-                if not team_steps:
-                    continue
+                # Get idea owner
+                owner = idea_obj.owner
 
                 # Count steps by contributor
                 contributor_counts = defaultdict(int)
-                for step in team_steps:
+                for step in shared_idea["steps"]:
                     if step.owner:
                         contributor_counts[step.owner] += 1
 
                 # Skip if only one contributor
                 if len(contributor_counts) < 2:
                     continue
-
-                # Get idea owner
-                owner = idea.owner
 
                 # Get contributor with most steps
                 top_contributor = max(contributor_counts.items(), key=lambda x: x[1])[0]
@@ -1542,7 +1445,7 @@ class TeamAnalyzer:
 
                 # Analyze contribution flow
                 steps_with_dates = [
-                    step for step in team_steps if step.get_creation_date()
+                    step for step in shared_idea["steps"] if step.get_creation_date()
                 ]
 
                 if len(steps_with_dates) >= 2:
@@ -1608,38 +1511,28 @@ class TeamAnalyzer:
         )
         total_flow_patterns = creator_first + parallel_start + contributor_first
 
-        # Calculate pattern percentages
+        # Calculate pattern percentages using utility function
+        ownership_counts = {
+            "owner_contributes_most": owner_contributes_most,
+            "equal_contribution": equal_contribution,
+            "non_owner_contributes_most": non_owner_contributes_most,
+        }
+
+        flow_counts = {
+            "creator_first": creator_first,
+            "parallel_start": parallel_start,
+            "contributor_first": contributor_first,
+        }
+
         if total_shared_ideas > 0:
-            patterns["ownership_patterns"] = {
-                "owner_contributes_most": {
-                    "count": owner_contributes_most,
-                    "percentage": owner_contributes_most / total_shared_ideas,
-                },
-                "equal_contribution": {
-                    "count": equal_contribution,
-                    "percentage": equal_contribution / total_shared_ideas,
-                },
-                "non_owner_contributes_most": {
-                    "count": non_owner_contributes_most,
-                    "percentage": non_owner_contributes_most / total_shared_ideas,
-                },
-            }
+            patterns["ownership_patterns"] = calculate_distribution_percentages(
+                ownership_counts
+            )
 
         if total_flow_patterns > 0:
-            patterns["contribution_flow"] = {
-                "creator_first": {
-                    "count": creator_first,
-                    "percentage": creator_first / total_flow_patterns,
-                },
-                "parallel_start": {
-                    "count": parallel_start,
-                    "percentage": parallel_start / total_flow_patterns,
-                },
-                "contributor_first": {
-                    "count": contributor_first,
-                    "percentage": contributor_first / total_flow_patterns,
-                },
-            }
+            patterns["contribution_flow"] = calculate_distribution_percentages(
+                flow_counts
+            )
 
         if total_teams_with_multiple_ideas > 0:
             patterns["cross_idea_collaboration"] = {
@@ -1673,7 +1566,7 @@ class TeamAnalyzer:
         }
 
         # Get member emails
-        member_emails = team.get_member_emails()
+        member_emails = extract_user_emails_from_team(team)
 
         if not member_emails:
             return result
@@ -1712,19 +1605,16 @@ class TeamAnalyzer:
             activity_values = sorted(activity_counts.values())
 
             if len(activity_values) >= 2:
-                # Calculate Gini coefficient
-                gini = self._calculate_gini_coefficient(activity_values)
+                # Calculate Gini coefficient using utility function
+                gini = calculate_gini_coefficient(activity_values)
                 result["gini_coefficient"] = gini
 
                 # Calculate coefficient of variation
                 if sum(activity_values) > 0:
-                    mean = sum(activity_values) / len(activity_values)
-                    std_dev = (
-                        sum((x - mean) ** 2 for x in activity_values)
-                        / len(activity_values)
-                    ) ** 0.5
-                    cv = std_dev / mean if mean > 0 else 0
-                    result["coefficient_of_variation"] = cv
+                    stats = calculate_summary_statistics(activity_values)
+                    result["coefficient_of_variation"] = stats[
+                        "coefficient_of_variation"
+                    ]
 
                 # Determine distribution type based on Gini coefficient
                 if gini < 0.2:
@@ -1735,40 +1625,6 @@ class TeamAnalyzer:
                     result["distribution_type"] = "partial"
 
         return result
-
-    def _calculate_gini_coefficient(self, values: List[float]) -> float:
-        """
-        Calculate the Gini coefficient of inequality.
-
-        A Gini coefficient of 0 represents perfect equality,
-        while 1 represents perfect inequality.
-
-        Args:
-            values: List of values
-
-        Returns:
-            float: Gini coefficient
-        """
-        # Handle edge cases
-        if not values or all(x == 0 for x in values):
-            return 0
-
-        # Sort values
-        sorted_values = sorted(values)
-        n = len(sorted_values)
-
-        # Calculate cumulative sum
-        cum_values = [sum(sorted_values[: i + 1]) for i in range(n)]
-        total = cum_values[-1]
-
-        # Calculate Gini coefficient
-        if total == 0:
-            return 0
-
-        fair_area = sum(range(1, n + 1)) / n / n
-        actual_area = sum((n - i) * sorted_values[i] for i in range(n)) / n / total
-
-        return 2 * (fair_area - actual_area)
 
     def _analyze_team_roles(
         self, team_distributions: List[Dict[str, Any]]
@@ -1814,39 +1670,31 @@ class TeamAnalyzer:
             len(primary_teams) + len(partial_teams) + len(uniform_teams)
         )
 
+        patterns_count = {
+            "primary_contributor": len(primary_teams),
+            "specialized_roles": len(partial_teams),
+            "balanced_contribution": len(uniform_teams),
+        }
+
         if total_active_teams > 0:
-            roles["observed_patterns"] = {
-                "primary_contributor": {
-                    "count": len(primary_teams),
-                    "percentage": len(primary_teams) / total_active_teams,
-                    "avg_team_size": (
-                        sum(t.get("member_count", 0) for t in primary_teams)
-                        / len(primary_teams)
-                        if primary_teams
-                        else 0
-                    ),
-                },
-                "specialized_roles": {
-                    "count": len(partial_teams),
-                    "percentage": len(partial_teams) / total_active_teams,
-                    "avg_team_size": (
-                        sum(t.get("member_count", 0) for t in partial_teams)
-                        / len(partial_teams)
-                        if partial_teams
-                        else 0
-                    ),
-                },
-                "balanced_contribution": {
-                    "count": len(uniform_teams),
-                    "percentage": len(uniform_teams) / total_active_teams,
-                    "avg_team_size": (
-                        sum(t.get("member_count", 0) for t in uniform_teams)
-                        / len(uniform_teams)
-                        if uniform_teams
-                        else 0
-                    ),
-                },
-            }
+            roles["observed_patterns"] = calculate_distribution_percentages(
+                patterns_count
+            )
+
+            # Add additional metrics
+            for pattern, data in roles["observed_patterns"].items():
+                if pattern == "primary_contributor" and primary_teams:
+                    data["avg_team_size"] = sum(
+                        t.get("member_count", 0) for t in primary_teams
+                    ) / len(primary_teams)
+                elif pattern == "specialized_roles" and partial_teams:
+                    data["avg_team_size"] = sum(
+                        t.get("member_count", 0) for t in partial_teams
+                    ) / len(partial_teams)
+                elif pattern == "balanced_contribution" and uniform_teams:
+                    data["avg_team_size"] = sum(
+                        t.get("member_count", 0) for t in uniform_teams
+                    ) / len(uniform_teams)
 
         # Calculate role specialization metrics
         if partial_teams:
@@ -1887,7 +1735,7 @@ class TeamAnalyzer:
         }
 
         # Get member emails
-        member_emails = team.get_member_emails()
+        member_emails = extract_user_emails_from_team(team)
 
         if not member_emails:
             return metrics
@@ -2213,10 +2061,10 @@ class TeamAnalyzer:
             if m.get("team_size", 0) > 0
         ]
 
-        # Calculate correlations
-        engagement_corr = self._calculate_correlation(team_sizes, engagement_scores)
-        idea_corr = self._calculate_correlation(team_sizes, idea_avgs)
-        step_corr = self._calculate_correlation(team_sizes, step_avgs)
+        # Calculate correlations using utility function
+        engagement_corr = calculate_correlation(team_sizes, engagement_scores)
+        idea_corr = calculate_correlation(team_sizes, idea_avgs)
+        step_corr = calculate_correlation(team_sizes, step_avgs)
 
         correlation["size_impact"] = {
             "engagement_correlation": engagement_corr,
@@ -2351,12 +2199,10 @@ class TeamAnalyzer:
             if m.get("team_size", 0) > 1
         ]
 
-        # Calculate correlations
-        engagement_corr = self._calculate_correlation(
-            diversity_scores, engagement_scores
-        )
-        idea_corr = self._calculate_correlation(diversity_scores, idea_avgs)
-        step_corr = self._calculate_correlation(diversity_scores, step_avgs)
+        # Calculate correlations using utility function
+        engagement_corr = calculate_correlation(diversity_scores, engagement_scores)
+        idea_corr = calculate_correlation(diversity_scores, idea_avgs)
+        step_corr = calculate_correlation(diversity_scores, step_avgs)
 
         correlation["diversity_impact"] = {
             "engagement_correlation": engagement_corr,
@@ -2887,7 +2733,7 @@ class TeamAnalyzer:
         # Process each team
         for team in teams:
             # Get member emails
-            member_emails = team.get_member_emails()
+            member_emails = extract_user_emails_from_team(team)
 
             if not member_emails:
                 continue
@@ -2949,8 +2795,8 @@ class TeamAnalyzer:
                     if step.step in framework_steps:
                         steps_in_sequence.append(step.step)
 
-                # Determine if progression is linear
-                if self._is_linear_progression(steps_in_sequence, framework_steps):
+                # Determine if progression is linear using utility function
+                if is_linear_progression(steps_in_sequence, framework_steps):
                     linear_progression_count += 1
                 else:
                     non_linear_progression_count += 1
@@ -2984,7 +2830,7 @@ class TeamAnalyzer:
         # Calculate step completion rates
         if total_ideas > 0:
             progression["step_completion_rates"] = {
-                self._get_step_display_name(step, framework): {
+                get_step_display_name(step, framework.value): {
                     "count": count,
                     "rate": count / total_ideas,
                 }
@@ -2993,17 +2839,15 @@ class TeamAnalyzer:
 
         # Calculate progression patterns
         total_progressions = linear_progression_count + non_linear_progression_count
+        pattern_counts = {
+            "linear": linear_progression_count,
+            "non_linear": non_linear_progression_count,
+        }
+
         if total_progressions > 0:
-            progression["progression_patterns"] = {
-                "linear": {
-                    "count": linear_progression_count,
-                    "percentage": linear_progression_count / total_progressions,
-                },
-                "non_linear": {
-                    "count": non_linear_progression_count,
-                    "percentage": non_linear_progression_count / total_progressions,
-                },
-            }
+            progression["progression_patterns"] = calculate_distribution_percentages(
+                pattern_counts
+            )
 
         # Calculate collaboration impact
         if ideas_with_collaboration and ideas_without_collaboration:
@@ -3130,8 +2974,8 @@ class TeamAnalyzer:
                     if step.step in framework_steps:
                         steps_in_sequence.append(step.step)
 
-                # Determine if progression is linear
-                if self._is_linear_progression(steps_in_sequence, framework_steps):
+                # Determine if progression is linear using utility function
+                if is_linear_progression(steps_in_sequence, framework_steps):
                     linear_progression_count += 1
                 else:
                     non_linear_progression_count += 1
@@ -3139,7 +2983,7 @@ class TeamAnalyzer:
         # Calculate step completion rates
         if total_ideas > 0:
             progression["step_completion_rates"] = {
-                self._get_step_display_name(step, framework): {
+                get_step_display_name(step, framework.value): {
                     "count": count,
                     "rate": count / total_ideas,
                 }
@@ -3148,17 +2992,15 @@ class TeamAnalyzer:
 
         # Calculate progression patterns
         total_progressions = linear_progression_count + non_linear_progression_count
+        pattern_counts = {
+            "linear": linear_progression_count,
+            "non_linear": non_linear_progression_count,
+        }
+
         if total_progressions > 0:
-            progression["progression_patterns"] = {
-                "linear": {
-                    "count": linear_progression_count,
-                    "percentage": linear_progression_count / total_progressions,
-                },
-                "non_linear": {
-                    "count": non_linear_progression_count,
-                    "percentage": non_linear_progression_count / total_progressions,
-                },
-            }
+            progression["progression_patterns"] = calculate_distribution_percentages(
+                pattern_counts
+            )
 
         # Calculate engagement correlation
         for level, data in engagement_data.items():
@@ -3250,151 +3092,6 @@ class TeamAnalyzer:
 
         return comparison
 
-    def _is_linear_progression(
-        self, step_sequence: List[str], framework_steps: List[str]
-    ) -> bool:
-        """
-        Determine if a step sequence follows a linear progression.
-
-        Args:
-            step_sequence: Sequence of steps in order of completion
-            framework_steps: List of all steps in the framework in standard order
-
-        Returns:
-            bool: True if progression is linear, False otherwise
-        """
-        if not step_sequence:
-            return False
-
-        # Get indices of steps in framework order
-        try:
-            indices = [framework_steps.index(step) for step in step_sequence]
-        except ValueError:
-            # Step not in framework_steps
-            return False
-
-        # Check if indices are in ascending order
-        return all(indices[i] <= indices[i + 1] for i in range(len(indices) - 1))
-
-    def _calculate_correlation(
-        self, values1: List[float], values2: List[float]
-    ) -> float:
-        """
-        Calculate Pearson correlation coefficient between two lists of values.
-
-        Args:
-            values1: First list of values
-            values2: Second list of values
-
-        Returns:
-            float: Correlation coefficient (-1 to 1)
-        """
-        if len(values1) != len(values2) or len(values1) < 2:
-            return 0.0
-
-        n = len(values1)
-
-        # Calculate means
-        mean1 = sum(values1) / n
-        mean2 = sum(values2) / n
-
-        # Calculate variances and covariance
-        var1 = sum((x - mean1) ** 2 for x in values1)
-        var2 = sum((x - mean2) ** 2 for x in values2)
-
-        if var1 == 0 or var2 == 0:
-            return 0.0  # No correlation if one variable doesn't vary
-
-        cov = sum((values1[i] - mean1) * (values2[i] - mean2) for i in range(n))
-
-        # Calculate correlation coefficient
-        return cov / (var1 * var2) ** 0.5
-
-    def _analyze_temporal_collaboration(
-        self, team_metrics: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """
-        Analyze temporal patterns in team collaboration.
-
-        Args:
-            team_metrics: List of team collaboration metrics
-
-        Returns:
-            Dict with temporal collaboration patterns
-        """
-        patterns = {
-            "collaboration_timing": {},
-            "activity_windows": {},
-        }
-
-        # Skip if no team metrics
-        teams_with_temporal = [m for m in team_metrics if "temporal_patterns" in m]
-        if not teams_with_temporal:
-            return patterns
-
-        # Count synchronous vs. asynchronous collaboration
-        sync_count = sum(
-            m["temporal_patterns"].get("synchronous_collaboration", 0)
-            for m in teams_with_temporal
-        )
-        async_count = sum(
-            m["temporal_patterns"].get("asynchronous_collaboration", 0)
-            for m in teams_with_temporal
-        )
-
-        total_count = sync_count + async_count
-        if total_count > 0:
-            patterns["collaboration_timing"] = {
-                "synchronous": {
-                    "count": sync_count,
-                    "percentage": sync_count / total_count,
-                },
-                "asynchronous": {
-                    "count": async_count,
-                    "percentage": async_count / total_count,
-                },
-            }
-
-        # Analyze collaboration windows
-        windows = []
-        for metrics in teams_with_temporal:
-            if (
-                "temporal_patterns" in metrics
-                and "avg_collaboration_window_hours" in metrics["temporal_patterns"]
-            ):
-                windows.append(
-                    metrics["temporal_patterns"]["avg_collaboration_window_hours"]
-                )
-
-        if windows:
-            # Calculate window statistics
-            avg_window = sum(windows) / len(windows)
-
-            # Group windows by duration
-            short_windows = sum(1 for w in windows if w < 1)
-            medium_windows = sum(1 for w in windows if 1 <= w < 24)
-            long_windows = sum(1 for w in windows if w >= 24)
-
-            patterns["activity_windows"] = {
-                "avg_window_hours": avg_window,
-                "window_distribution": {
-                    "short_term": {
-                        "count": short_windows,
-                        "percentage": short_windows / len(windows),
-                    },
-                    "medium_term": {
-                        "count": medium_windows,
-                        "percentage": medium_windows / len(windows),
-                    },
-                    "long_term": {
-                        "count": long_windows,
-                        "percentage": long_windows / len(windows),
-                    },
-                },
-            }
-
-        return patterns
-
     def _get_step_display_name(self, step_name: str, framework: FrameworkType) -> str:
         """
         Get display name for a framework step.
@@ -3410,9 +3107,10 @@ class TeamAnalyzer:
             try:
                 step_enum = DisciplinedEntrepreneurshipStep(step_name)
                 step_number = step_enum.step_number
-                readable_name = step_name.replace("-", " ").title()
-                return f"{step_number}. {readable_name}"
+                return get_step_display_name(
+                    step_name, framework.value, {step_name: step_number}
+                )
             except ValueError:
-                return step_name.replace("-", " ").title()
+                return get_step_display_name(step_name, framework.value)
         else:
-            return step_name.replace("-", " ").title()
+            return get_step_display_name(step_name, framework.value)
