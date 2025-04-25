@@ -22,6 +22,26 @@ from ..data.models.enums import (
     Semester,
     ToolVersion,
 )
+from ..data.data_repository import DataRepository
+from ..data.models.enums import (
+    FrameworkType,
+    DisciplinedEntrepreneurshipStep,
+    StartupTacticsStep,
+    Semester,
+    ToolVersion,
+)
+from ..utils.common_utils import (
+    calculate_correlation,
+    group_values_into_ranges,
+)
+from ..utils.framework_analysis_utils import (
+    ProgressionType,
+    classify_progression_pattern,
+    get_step_sequences,
+    analyze_step_relationships,
+    calculate_step_time_intervals,
+    analyze_framework_bottlenecks,
+)
 
 
 class ProgressionType(str, Enum):
@@ -392,145 +412,47 @@ class FrameworkAnalyzer:
                 "error": "No ideas found with steps in this framework",
             }
 
-        # Build step completion matrix
-        # For each idea, track which steps were completed
-        step_completion = {step: [] for step in framework_steps}
-
-        for idea in ideas:
-            for step in framework_steps:
-                step_completion[step].append(1 if idea.has_step(step) else 0)
-
-        # Calculate correlations between steps
-        step_correlations = {}
-
-        for step1, step2 in itertools.combinations(framework_steps, 2):
-            correlation = self._calculate_correlation(
-                step_completion[step1], step_completion[step2]
-            )
-
-            if abs(correlation) >= min_correlation:
-                if step1 not in step_correlations:
-                    step_correlations[step1] = {}
-
-                step_correlations[step1][step2] = correlation
-
-        # Format correlations for output
-        formatted_correlations = {}
-        for step1, correlations in step_correlations.items():
-            step1_name = self._get_step_display_name(step1, framework)
-            formatted_correlations[step1_name] = {
-                self._get_step_display_name(step2, framework): correlation
-                for step2, correlation in correlations.items()
-            }
-
-        result["step_correlations"] = formatted_correlations
-
-        # Analyze step sequences to find prerequisites and dependencies
+        # Get step sequences
         step_sequences = self._get_step_sequences(framework, user_emails)
 
-        # Count how often step2 follows step1
-        sequence_counts = defaultdict(lambda: defaultdict(int))
-        total_sequences = len(step_sequences)
+        # Use utility function to analyze relationships between steps
+        relationships = analyze_step_relationships(step_sequences, min_correlation)
 
-        for sequence in step_sequences:
-            for i in range(len(sequence) - 1):
-                step1 = sequence[i]
-                step2 = sequence[i + 1]
-                sequence_counts[step1][step2] += 1
-
-        # Calculate probability that step2 follows step1
-        sequential_patterns = {}
-
-        for step1, followers in sequence_counts.items():
-            step1_count = sum(1 for seq in step_sequences if step1 in seq)
-
-            if step1_count > 0:
-                sequential_patterns[step1] = {
-                    step2: count / step1_count
-                    for step2, count in followers.items()
-                    if count / step1_count >= min_correlation
-                }
-
-        # Format sequential patterns for output
-        formatted_patterns = {}
-        for step1, patterns in sequential_patterns.items():
-            step1_name = self._get_step_display_name(step1, framework)
-            formatted_patterns[step1_name] = {
-                self._get_step_display_name(step2, framework): probability
-                for step2, probability in patterns.items()
+        # Format the results with step display names
+        # Format prerequisites
+        formatted_prerequisites = {}
+        for step, prereqs in relationships["prerequisites"].items():
+            step_name = self._get_step_display_name(step, framework)
+            formatted_prerequisites[step_name] = {
+                self._get_step_display_name(prereq, framework): probability
+                for prereq, probability in prereqs.items()
             }
 
-        result["sequential_patterns"] = formatted_patterns
-
-        # Identify prerequisites (steps that typically come before a given step)
-        prerequisites = {}
-
-        for step in framework_steps:
-            step_prerequisites = defaultdict(int)
-            step_occurrences = 0
-
-            for sequence in step_sequences:
-                if step in sequence:
-                    step_index = sequence.index(step)
-                    step_occurrences += 1
-
-                    # Count all steps that come before this step
-                    for i in range(step_index):
-                        step_prerequisites[sequence[i]] += 1
-
-            if step_occurrences > 0:
-                prerequisites[step] = {
-                    prereq: count / step_occurrences
-                    for prereq, count in step_prerequisites.items()
-                    if count / step_occurrences >= min_correlation
-                }
-
-        # Format prerequisites for output
-        formatted_prerequisites = {}
-        for step, prereqs in prerequisites.items():
-            if prereqs:  # Only include steps with prerequisites
-                step_name = self._get_step_display_name(step, framework)
-                formatted_prerequisites[step_name] = {
-                    self._get_step_display_name(prereq, framework): probability
-                    for prereq, probability in prereqs.items()
-                }
-
-        result["prerequisites"] = formatted_prerequisites
-
-        # Identify dependent steps (steps that typically come after a given step)
-        dependent_steps = {}
-
-        for step in framework_steps:
-            step_dependents = defaultdict(int)
-            step_occurrences = 0
-
-            for sequence in step_sequences:
-                if step in sequence:
-                    step_index = sequence.index(step)
-                    step_occurrences += 1
-
-                    # Count all steps that come after this step
-                    for i in range(step_index + 1, len(sequence)):
-                        step_dependents[sequence[i]] += 1
-
-            if step_occurrences > 0:
-                dependent_steps[step] = {
-                    dependent: count / step_occurrences
-                    for dependent, count in step_dependents.items()
-                    if count / step_occurrences >= min_correlation
-                }
-
-        # Format dependent steps for output
+        # Format dependents
         formatted_dependents = {}
-        for step, dependents in dependent_steps.items():
-            if dependents:  # Only include steps with dependents
-                step_name = self._get_step_display_name(step, framework)
-                formatted_dependents[step_name] = {
-                    self._get_step_display_name(dependent, framework): probability
-                    for dependent, probability in dependents.items()
-                }
+        for step, deps in relationships["dependents"].items():
+            step_name = self._get_step_display_name(step, framework)
+            formatted_dependents[step_name] = {
+                self._get_step_display_name(dep, framework): probability
+                for dep, probability in deps.items()
+            }
 
+        # Format co-occurrences for correlations
+        formatted_correlations = {}
+        for step, coocs in relationships["co_occurrences"].items():
+            step_name = self._get_step_display_name(step, framework)
+            formatted_correlations[step_name] = {
+                self._get_step_display_name(cooc, framework): probability
+                for cooc, probability in coocs.items()
+            }
+
+        # Add to result
+        result["prerequisites"] = formatted_prerequisites
         result["dependent_steps"] = formatted_dependents
+        result["step_correlations"] = formatted_correlations
+
+        # For sequential patterns, we'll use the dependents data
+        result["sequential_patterns"] = formatted_dependents
 
         return result
 
@@ -625,54 +547,51 @@ class FrameworkAnalyzer:
                 "step_number": step_number,
             }
 
-        # Find completion bottlenecks (steps with high completion drop-off)
-        bottlenecks = []
-
-        # Get completion rates for each step
+        # Get completion rates for each step for bottleneck analysis
         completion_rates = {
             step: sum(1 for idea in ideas if idea.has_step(step)) / total_ideas
             for step in framework_steps
         }
 
-        # Look for significant drops in completion rates between consecutive steps
-        for i in range(1, len(framework_steps)):
-            prev_step = framework_steps[i - 1]
-            curr_step = framework_steps[i]
+        # Use utility function to analyze bottlenecks
+        step_numbers = {
+            step: self._get_step_number(step, framework) for step in framework_steps
+        }
 
-            prev_rate = completion_rates[prev_step]
-            curr_rate = completion_rates[curr_step]
+        # Get step relationships for bottleneck analysis
+        step_sequences = self._get_step_sequences(framework, user_emails)
+        step_relationships = analyze_step_relationships(step_sequences)
 
-            # Calculate drop-off
-            drop_off = prev_rate - curr_rate
+        bottleneck_analysis = analyze_framework_bottlenecks(
+            completion_rates, step_relationships, framework_steps, step_numbers
+        )
 
-            if drop_off > 0.15:  # Significant drop-off threshold
-                prev_name = self._get_step_display_name(prev_step, framework)
-                curr_name = self._get_step_display_name(curr_step, framework)
+        # Format bottlenecks with display names
+        formatted_bottlenecks = []
+        for bottleneck in bottleneck_analysis.get("completion_bottlenecks", []):
+            from_step = bottleneck["from_step"]
+            to_step = bottleneck["to_step"]
 
-                bottlenecks.append(
-                    {
-                        "from_step": prev_name,
-                        "to_step": curr_name,
-                        "drop_off_rate": drop_off,
-                        "from_completion_rate": prev_rate,
-                        "to_completion_rate": curr_rate,
-                        "severity": "high" if drop_off > 0.3 else "medium",
-                    }
-                )
+            formatted_bottlenecks.append(
+                {
+                    "from_step": self._get_step_display_name(from_step, framework),
+                    "to_step": self._get_step_display_name(to_step, framework),
+                    "drop_off_rate": bottleneck["drop_off_rate"],
+                    "from_completion_rate": bottleneck["from_completion_rate"],
+                    "to_completion_rate": bottleneck["to_completion_rate"],
+                    "severity": bottleneck["severity"],
+                }
+            )
 
-        # Sort bottlenecks by drop-off rate (descending)
-        bottlenecks.sort(key=lambda x: x["drop_off_rate"], reverse=True)
-        result["completion_bottlenecks"] = bottlenecks
+        result["completion_bottlenecks"] = formatted_bottlenecks
 
-        # Analyze potential abandonment factors
+        # Analyze abandonment factors using existing method
         result["abandonment_factors"] = self._analyze_abandonment_factors(
             ideas, framework, framework_steps, dropout_counts
         )
 
-        # Generate recommendations for improving completion
-        result["recommendation"] = self._generate_framework_recommendations(
-            bottlenecks, completion_rates, framework_steps, framework
-        )
+        # Use formatted recommendations from bottleneck analysis
+        result["recommendation"] = bottleneck_analysis.get("recommendation", {})
 
         return result
 
@@ -704,16 +623,6 @@ class FrameworkAnalyzer:
             "interval_distribution": {},
         }
 
-        # Get steps in the framework
-        framework_steps = []
-        if framework == FrameworkType.DISCIPLINED_ENTREPRENEURSHIP:
-            framework_steps = DisciplinedEntrepreneurshipStep.get_all_step_values()
-        elif framework == FrameworkType.STARTUP_TACTICS:
-            framework_steps = StartupTacticsStep.get_all_step_values()
-        else:
-            # Not implemented for other frameworks
-            return {"error": f"Framework not supported: {framework.value}"}
-
         # Get users, optionally filtered by course
         if course_id:
             users = self._data_repo.users.find_by_course(course_id)
@@ -721,11 +630,11 @@ class FrameworkAnalyzer:
         else:
             user_emails = None
 
-        # Collect all step creation timestamps by idea
-        idea_step_timestamps = {}
-
         # Get all ideas with steps in this framework
         ideas = self._get_ideas_with_framework_steps(framework, user_emails)
+
+        # Prepare step sequences with timestamps for utility function
+        step_sequences_with_dates = []
 
         for idea in ideas:
             if not idea.id:
@@ -746,106 +655,37 @@ class FrameworkAnalyzer:
             if not framework_steps_with_dates:
                 continue
 
-            # Create timestamp dictionary for this idea
-            idea_step_timestamps[idea_id] = {}
-
+            # Create step sequence with timestamps
+            step_sequence = []
             for step in framework_steps_with_dates:
-                if step.step:
-                    # Use the earliest timestamp if there are multiple versions of the same step
-                    current_timestamp = idea_step_timestamps[idea_id].get(step.step)
-                    step_timestamp = step.get_creation_date()
+                if step.step and step.get_creation_date():
+                    step_sequence.append((step.step, step.get_creation_date()))
 
-                    if current_timestamp is None or step_timestamp < current_timestamp:
-                        idea_step_timestamps[idea_id][step.step] = step_timestamp
+            if step_sequence:
+                # Sort by timestamp
+                step_sequence.sort(key=lambda x: x[1])
+                step_sequences_with_dates.append(step_sequence)
 
-        # Calculate intervals between consecutive steps
-        all_intervals = []  # List of all intervals in minutes
-        step_pair_intervals = defaultdict(
-            list
-        )  # Maps (step1, step2) to list of intervals
+        # Use utility function to calculate intervals
+        intervals_data = calculate_step_time_intervals(step_sequences_with_dates)
 
-        for idea_id, timestamps in idea_step_timestamps.items():
-            if len(timestamps) < 2:
-                continue
+        # Format step pair metrics with display names
+        formatted_metrics = {}
+        for step_pair, metrics in intervals_data.get("step_pair_metrics", {}).items():
+            # Extract steps from the pair string (format: "step1 → step2")
+            steps = step_pair.split(" → ")
+            if len(steps) == 2:
+                step1, step2 = steps
+                # Format with display names
+                formatted_pair = f"{self._get_step_display_name(step1, framework)} → {self._get_step_display_name(step2, framework)}"
+                formatted_metrics[formatted_pair] = metrics
 
-            # Sort steps by timestamp
-            sorted_steps = sorted(timestamps.items(), key=lambda x: x[1])
-
-            # Calculate intervals between consecutive steps
-            for i in range(1, len(sorted_steps)):
-                prev_step, prev_time = sorted_steps[i - 1]
-                curr_step, curr_time = sorted_steps[i]
-
-                # Calculate interval in minutes
-                interval_minutes = (curr_time - prev_time).total_seconds() / 60
-
-                all_intervals.append(interval_minutes)
-                step_pair_intervals[(prev_step, curr_step)].append(interval_minutes)
-
-        # Calculate overall metrics
-        if all_intervals:
-            result["overall_metrics"] = {
-                "total_intervals": len(all_intervals),
-                "avg_interval_minutes": sum(all_intervals) / len(all_intervals),
-                "median_interval_minutes": sorted(all_intervals)[
-                    len(all_intervals) // 2
-                ],
-                "min_interval_minutes": min(all_intervals),
-                "max_interval_minutes": max(all_intervals),
-            }
-
-            # Group intervals into categories
-            interval_categories = {
-                "under_5min": sum(1 for i in all_intervals if i < 5),
-                "5_15min": sum(1 for i in all_intervals if 5 <= i < 15),
-                "15_30min": sum(1 for i in all_intervals if 15 <= i < 30),
-                "30_60min": sum(1 for i in all_intervals if 30 <= i < 60),
-                "1_3hr": sum(1 for i in all_intervals if 60 <= i < 180),
-                "3_24hr": sum(1 for i in all_intervals if 180 <= i < 1440),
-                "over_24hr": sum(1 for i in all_intervals if i >= 1440),
-            }
-
-            # Calculate percentages
-            interval_distribution = {
-                category: {"count": count, "percentage": count / len(all_intervals)}
-                for category, count in interval_categories.items()
-            }
-
-            result["interval_distribution"] = interval_distribution
-
-        # Calculate metrics for each step pair
-        step_interval_metrics = {}
-
-        for (step1, step2), intervals in step_pair_intervals.items():
-            if not intervals:
-                continue
-
-            step1_name = self._get_step_display_name(step1, framework)
-            step2_name = self._get_step_display_name(step2, framework)
-
-            metrics = {
-                "count": len(intervals),
-                "avg_minutes": sum(intervals) / len(intervals),
-                "median_minutes": sorted(intervals)[len(intervals) // 2],
-                "min_minutes": min(intervals),
-                "max_minutes": max(intervals),
-            }
-
-            # Add speed classification
-            if metrics["avg_minutes"] < 15:
-                metrics["speed"] = "very_fast"
-            elif metrics["avg_minutes"] < 60:
-                metrics["speed"] = "fast"
-            elif metrics["avg_minutes"] < 360:  # 6 hours
-                metrics["speed"] = "moderate"
-            elif metrics["avg_minutes"] < 1440:  # 24 hours
-                metrics["speed"] = "slow"
-            else:
-                metrics["speed"] = "very_slow"
-
-            step_interval_metrics[f"{step1_name} → {step2_name}"] = metrics
-
-        result["step_interval_metrics"] = step_interval_metrics
+        # Update result
+        result["step_interval_metrics"] = formatted_metrics
+        result["overall_metrics"] = intervals_data.get("interval_statistics", {})
+        result["interval_distribution"] = intervals_data.get(
+            "interval_distribution", {}
+        )
 
         # Add version comparison if requested
         if include_version_comparison:
@@ -1363,41 +1203,8 @@ class FrameworkAnalyzer:
         # Get ideas with steps in the framework
         ideas = self._get_ideas_with_framework_steps(framework, user_emails)
 
-        # Extract step sequences
-        sequences = []
-
-        for idea in ideas:
-            if not idea.id:
-                continue
-
-            idea_id = idea.id.oid if hasattr(idea.id, "oid") else str(idea.id)
-
-            # Get steps for this idea
-            steps = self._data_repo.steps.find_by_idea_id(idea_id)
-
-            # Filter to framework steps with creation dates
-            framework_steps = [
-                step
-                for step in steps
-                if step.framework == framework.value
-                and step.step
-                and step.get_creation_date()
-            ]
-
-            if not framework_steps:
-                continue
-
-            # Sort steps by creation date
-            sorted_steps = sorted(framework_steps, key=lambda s: s.get_creation_date())
-
-            # Extract step names
-            step_sequence = [step.step for step in sorted_steps]
-
-            # Add to sequences
-            if step_sequence:
-                sequences.append(step_sequence)
-
-        return sequences
+        # Use the utility function with our repository
+        return get_step_sequences(ideas, framework.value, self._data_repo.steps)
 
     def _get_step_number(self, step_name: str, framework: FrameworkType) -> int:
         """
@@ -1461,99 +1268,20 @@ class FrameworkAnalyzer:
         Returns:
             str: Progression pattern type
         """
-        if not sequence:
-            return ProgressionType.MINIMAL.value
-
-        # Get step numbers for the sequence
-        step_numbers = [self._get_step_number(step, framework) for step in sequence]
-
-        # Filter out any invalid step numbers
-        valid_numbers = [num for num in step_numbers if num > 0]
-
-        if not valid_numbers:
-            return ProgressionType.MINIMAL.value
-
-        # Check if comprehensive (completing most steps)
+        # Get framework steps
+        framework_steps = []
         if framework == FrameworkType.DISCIPLINED_ENTREPRENEURSHIP:
-            total_steps = 24
-            if len(valid_numbers) >= total_steps * 0.75:  # 75% or more of steps
-                return ProgressionType.COMPREHENSIVE.value
+            framework_steps = DisciplinedEntrepreneurshipStep.get_all_step_values()
         elif framework == FrameworkType.STARTUP_TACTICS:
-            total_steps = len(StartupTacticsStep)
-            if len(valid_numbers) >= total_steps * 0.75:  # 75% or more of steps
-                return ProgressionType.COMPREHENSIVE.value
+            framework_steps = StartupTacticsStep.get_all_step_values()
 
-        # Check if minimal (very few steps)
-        if len(valid_numbers) <= 2:
-            return ProgressionType.MINIMAL.value
+        # Create step numbers mapping
+        step_numbers = {}
+        for step in framework_steps:
+            step_numbers[step] = self._get_step_number(step, framework)
 
-        # Check if linear (steps in order)
-        is_sorted = all(
-            valid_numbers[i] <= valid_numbers[i + 1]
-            for i in range(len(valid_numbers) - 1)
-        )
-
-        if is_sorted:
-            # Check if jumping (skipping steps)
-            total_range = valid_numbers[-1] - valid_numbers[0] + 1
-            if total_range > len(valid_numbers) * 1.5:  # Significant gaps
-                return ProgressionType.JUMPING.value
-            else:
-                return ProgressionType.LINEAR.value
-
-        # Check if focused (steps clustered in specific areas)
-        step_groups = []
-        current_group = [valid_numbers[0]]
-
-        for i in range(1, len(valid_numbers)):
-            if (
-                abs(valid_numbers[i] - valid_numbers[i - 1]) <= 3
-            ):  # Close to previous step
-                current_group.append(valid_numbers[i])
-            else:
-                step_groups.append(current_group)
-                current_group = [valid_numbers[i]]
-
-        if current_group:
-            step_groups.append(current_group)
-
-        if len(step_groups) >= 2 and all(len(group) >= 2 for group in step_groups):
-            return ProgressionType.FOCUSED.value
-
-        # Default to nonlinear
-        return ProgressionType.NONLINEAR.value
-
-    def _calculate_correlation(self, values1: List[int], values2: List[int]) -> float:
-        """
-        Calculate correlation coefficient between two lists of values.
-
-        Args:
-            values1: First list of values
-            values2: Second list of values
-
-        Returns:
-            float: Correlation coefficient (-1 to 1)
-        """
-        if len(values1) != len(values2) or len(values1) == 0:
-            return 0.0
-
-        n = len(values1)
-
-        # Calculate means
-        mean1 = sum(values1) / n
-        mean2 = sum(values2) / n
-
-        # Calculate variances and covariance
-        var1 = sum((x - mean1) ** 2 for x in values1)
-        var2 = sum((x - mean2) ** 2 for x in values2)
-
-        if var1 == 0 or var2 == 0:
-            return 0.0  # No correlation if one variable doesn't vary
-
-        cov = sum((values1[i] - mean1) * (values2[i] - mean2) for i in range(n))
-
-        # Calculate correlation coefficient
-        return cov / math.sqrt(var1 * var2)
+        # Use the utility function
+        return classify_progression_pattern(sequence, framework_steps, step_numbers)
 
     def _group_into_ranges(
         self,
@@ -1572,45 +1300,8 @@ class FrameworkAnalyzer:
         Returns:
             Dict mapping range labels to counts
         """
-        if not values:
-            return {}
-
-        # Calculate range size
-        range_size = max(1, max_value / num_ranges)
-
-        # Create ranges
-        ranges = {}
-        for i in range(num_ranges):
-            start = int(i * range_size)
-            end = int((i + 1) * range_size - 1) if i < num_ranges - 1 else max_value
-
-            if start == end:
-                label = f"{start}"
-            else:
-                label = f"{start}-{end}"
-
-            ranges[label] = 0
-
-        # Count values in each range
-        for value in values:
-            range_index = min(int(value / range_size), num_ranges - 1)
-
-            # Get range label
-            start = int(range_index * range_size)
-            end = (
-                int((range_index + 1) * range_size - 1)
-                if range_index < num_ranges - 1
-                else max_value
-            )
-
-            if start == end:
-                label = f"{start}"
-            else:
-                label = f"{start}-{end}"
-
-            ranges[label] += 1
-
-        return ranges
+        # Use the utility function
+        return group_values_into_ranges(list(values), float(max_value), num_ranges)
 
     def _analyze_abandonment_factors(
         self,
@@ -2283,10 +1974,8 @@ class FrameworkAnalyzer:
             content_scores = [user["content_score"] for user in user_data]
             completion_scores = [user["completion_score"] for user in user_data]
 
-            content_correlation = self._calculate_correlation(
-                step_counts, content_scores
-            )
-            completion_correlation = self._calculate_correlation(
+            content_correlation = calculate_correlation(step_counts, content_scores)
+            completion_correlation = calculate_correlation(
                 step_counts, completion_scores
             )
 
