@@ -330,46 +330,6 @@ def get_date_range(
     return min(datetimes), max(datetimes)
 
 
-def group_by_time_period(
-    items: List[Dict[str, Any]], timestamp_field: str, period: str = "day"
-) -> Dict[str, List[Dict[str, Any]]]:
-    """
-    Group items by time period based on a timestamp field.
-
-    Args:
-        items: List of dictionaries with timestamp fields
-        timestamp_field: Field name containing the datetime object
-        period: Time period for grouping ('day', 'week', 'month', 'hour')
-
-    Returns:
-        Dict mapping period labels to lists of items
-    """
-    result = defaultdict(list)
-
-    for item in items:
-        if timestamp_field not in item:
-            continue
-
-        timestamp = item[timestamp_field]
-
-        if period == "day":
-            key = timestamp.strftime("%Y-%m-%d")
-        elif period == "week":
-            # ISO week format: YYYY-Www
-            key = f"{timestamp.isocalendar()[0]}-W{timestamp.isocalendar()[1]:02d}"
-        elif period == "month":
-            key = timestamp.strftime("%Y-%m")
-        elif period == "hour":
-            key = timestamp.strftime("%Y-%m-%d %H:00")
-        else:
-            # Default to day
-            key = timestamp.strftime("%Y-%m-%d")
-
-        result[key].append(item)
-
-    return dict(result)
-
-
 # Data Transformation Utilities
 
 
