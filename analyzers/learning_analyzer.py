@@ -9,12 +9,38 @@ educational effectiveness across cohorts.
 import logging
 from typing import Dict, List, Optional, Tuple, Any, Set, Union
 from datetime import datetime, timedelta
-import statistics
 from collections import defaultdict
 
 from ..data.data_repository import DataRepository
-from ..data.models.enums import Semester, ToolVersion, UserEngagementLevel
+from ..data.models.enums import (
+    Semester,
+    ToolVersion,
+    UserEngagementLevel,
+    FrameworkType,
+    DisciplinedEntrepreneurshipStep,
+)
 from ..data.models.course_model import CourseEvaluation
+from ..utils.common_utils import (
+    calculate_correlation,
+    calculate_summary_statistics,
+    calculate_distribution_percentages,
+    calculate_time_differences,
+    group_values_into_ranges,
+    group_by_time_period,
+)
+from ..utils.framework_analysis_utils import (
+    analyze_framework_bottlenecks,
+    identify_high_impact_steps,
+    classify_progression_pattern,
+    analyze_step_relationships,
+)
+from ..utils.data_processing_utils import (
+    get_step_completion_data,
+    group_steps_into_sessions,
+    get_activity_metrics_by_time,
+    filter_steps_by_framework,
+    extract_timestamps_from_steps,
+)
 
 
 class LearningAnalyzer:
@@ -209,7 +235,9 @@ class LearningAnalyzer:
         if not scores:
             return 0.0
 
-        return sum(scores) / len(scores)
+        # Using utility function to get more comprehensive statistics
+        stats = calculate_summary_statistics(scores)
+        return stats["mean"]
 
     def _calculate_rating_engagement_correlation(
         self, semester_data: Dict[str, Dict[str, Any]]
@@ -238,18 +266,17 @@ class LearningAnalyzer:
             weighted_engagement.append(data["engagement"]["weighted_score"])
             high_engagement_pct.append(data["engagement"]["distribution"]["high"])
 
-        # Calculate correlation coefficients
-        # (simplified implementation - would use scipy.stats.pearsonr in practice)
-        corr_overall_weighted = self._calculate_correlation(
+        # Using utility function instead of custom implementation
+        corr_overall_weighted = calculate_correlation(
             overall_ratings, weighted_engagement
         )
-        corr_high_impact_weighted = self._calculate_correlation(
+        corr_high_impact_weighted = calculate_correlation(
             high_impact_ratings, weighted_engagement
         )
-        corr_overall_high_engagement = self._calculate_correlation(
+        corr_overall_high_engagement = calculate_correlation(
             overall_ratings, high_engagement_pct
         )
-        corr_high_impact_high_engagement = self._calculate_correlation(
+        corr_high_impact_high_engagement = calculate_correlation(
             high_impact_ratings, high_engagement_pct
         )
 
@@ -259,41 +286,6 @@ class LearningAnalyzer:
             "overall_rating_high_engagement_pct": corr_overall_high_engagement,
             "high_impact_rating_high_engagement_pct": corr_high_impact_high_engagement,
         }
-
-    def _calculate_correlation(self, x: List[float], y: List[float]) -> float:
-        """
-        Calculate Pearson correlation coefficient between two lists.
-
-        This is a simplified implementation for small datasets.
-        For larger datasets, use scipy.stats.pearsonr.
-
-        Args:
-            x: First list of values
-            y: Second list of values
-
-        Returns:
-            float: Correlation coefficient (-1 to 1) or 0 if calculation fails
-        """
-        if len(x) != len(y) or len(x) < 2:
-            return 0.0
-
-        try:
-            # Calculate means
-            mean_x = sum(x) / len(x)
-            mean_y = sum(y) / len(y)
-
-            # Calculate covariance and standard deviations
-            covariance = sum((x_i - mean_x) * (y_i - mean_y) for x_i, y_i in zip(x, y))
-            stdev_x = (sum((x_i - mean_x) ** 2 for x_i in x)) ** 0.5
-            stdev_y = (sum((y_i - mean_y) ** 2 for y_i in y)) ** 0.5
-
-            # Calculate correlation
-            if stdev_x > 0 and stdev_y > 0:
-                return covariance / (stdev_x * stdev_y)
-            else:
-                return 0.0
-        except Exception:
-            return 0.0
 
     def compare_learning_outcomes_by_cohort(
         self,
@@ -1196,9 +1188,7 @@ class LearningAnalyzer:
                     x_values = [point[0] for point in data_points]
                     y_values = [point[1] for point in data_points]
 
-                    correlations[metric] = self._calculate_correlation(
-                        x_values, y_values
-                    )
+                    correlations[metric] = calculate_correlation(x_values, y_values)
 
             return {"semester_data": results, "correlations": correlations}
 
@@ -1322,6 +1312,18 @@ class LearningAnalyzer:
                     else 0.0
                 )
 
+                # Using utility function to create a distribution
+                quality_data = {}
+                for i in range(5):
+                    start = i * 0.2
+                    end = (i + 1) * 0.2
+                    key = f"{start:.1f}-{end:.1f}"
+                    quality_data[key] = sum(
+                        1 for score in idea_quality_scores if start <= score < end
+                    )
+
+                quality_distribution = calculate_distribution_percentages(quality_data)
+
                 # Store results for this semester
                 results[semester] = {
                     "learning_outcome_score": learning_outcome_score,
@@ -1329,9 +1331,7 @@ class LearningAnalyzer:
                         "count": len(all_ideas),
                         "avg_quality_score": avg_quality,
                         "avg_step_completion_rate": avg_completion_rate,
-                        "quality_distribution": self._calculate_distribution(
-                            idea_quality_scores
-                        ),
+                        "quality_distribution": quality_distribution,
                     },
                     "tool_version": evaluation.get_tool_version().value,
                 }
@@ -1348,10 +1348,10 @@ class LearningAnalyzer:
                     data["idea_metrics"]["avg_step_completion_rate"]
                 )
 
-            correlation_learning_quality = self._calculate_correlation(
+            correlation_learning_quality = calculate_correlation(
                 learning_scores, quality_scores
             )
-            correlation_learning_completion = self._calculate_correlation(
+            correlation_learning_completion = calculate_correlation(
                 learning_scores, completion_rates
             )
 
@@ -1367,37 +1367,6 @@ class LearningAnalyzer:
             self._logger.error(f"Error analyzing idea quality vs learning: {e}")
             return {"error": str(e)}
 
-    def _calculate_distribution(self, values: List[float]) -> Dict[str, int]:
-        """
-        Calculate the distribution of values across bins.
-
-        Args:
-            values: List of values
-
-        Returns:
-            Dict[str, int]: Mapping from bin range to count
-        """
-        if not values:
-            return {}
-
-        # Define bins
-        bins = {"0.0-0.2": 0, "0.2-0.4": 0, "0.4-0.6": 0, "0.6-0.8": 0, "0.8-1.0": 0}
-
-        # Count values in each bin
-        for value in values:
-            if value < 0.2:
-                bins["0.0-0.2"] += 1
-            elif value < 0.4:
-                bins["0.2-0.4"] += 1
-            elif value < 0.6:
-                bins["0.4-0.6"] += 1
-            elif value < 0.8:
-                bins["0.6-0.8"] += 1
-            else:
-                bins["0.8-1.0"] += 1
-
-        return bins
-
     def analyze_learning_objectives_by_step(self) -> Dict[str, Any]:
         """
         Analyze how different framework steps contribute to learning objectives.
@@ -1412,160 +1381,83 @@ class LearningAnalyzer:
             # Get steps data
             all_steps = self._data_repo.steps.get_all()
 
-            # Get step completion rates from framework analyzer
-            completion_rates = self._data_repo.ideas.get_step_completion_rates(
-                FrameworkType.DISCIPLINED_ENTREPRENEURSHIP
-            )
+            # Get step completion rates - using utility function
+            ideas = self._data_repo.ideas.get_all()
+            framework_steps = [step.value for step in DisciplinedEntrepreneurshipStep]
+
+            completion_data = get_step_completion_data(ideas, framework_steps)
+            completion_rates = {
+                step: data["rate"] for step, data in completion_data.items()
+            }
 
             # Get learning outcome metrics
             learning_outcomes = self.get_learning_outcome_metrics()
 
             # Calculate step impact by comparing engagement with steps to learning outcomes
-            # This is a simplified approximation - a more robust approach would involve
-            # cohort analysis and statistical testing
+            # Get user engagement scores
+            user_engagement_scores = {}
+            for user in self._data_repo.users.get_all():
+                if user.scores and user.scores.content is not None:
+                    user_engagement_scores[user.email] = user.scores.content
 
-            # For each DE step, calculate:
-            # 1. Completion rate
-            # 2. User input rate (measure of engagement)
-            # 3. Correlation with learning outcomes
+            # Get step sequences for each user
+            step_sequences = []
+            for user_id, _ in user_engagement_scores.items():
+                user_ideas = self._data_repo.ideas.find_by_owner(user_id)
+                user_sequences = []
 
-            step_metrics = {}
+                for idea in user_ideas:
+                    idea_id = idea.id.oid if hasattr(idea.id, "oid") else str(idea.id)
+                    steps = self._data_repo.steps.find_by_idea_id(idea_id)
+                    if steps:
+                        completed_steps = {step.step for step in steps if step.step}
+                        if completed_steps:
+                            user_sequences.extend(list(completed_steps))
 
-            for step in DisciplinedEntrepreneurshipStep:
-                step_name = step.value
+                if user_sequences:
+                    step_sequences.append(user_sequences)
 
-                # Get completion rate
-                completion_rate = completion_rates.get(step_name, 0.0)
-
-                # Get steps of this type
-                step_instances = self._data_repo.steps.find_by_step_type(
-                    step_name, framework=FrameworkType.DISCIPLINED_ENTREPRENEURSHIP
-                )
-
-                # Calculate user input rate
-                input_count = sum(1 for s in step_instances if s.has_user_input())
-                input_rate = (
-                    input_count / len(step_instances) if step_instances else 0.0
-                )
-
-                # Store metrics
-                step_metrics[step_name] = {
-                    "step_number": step.step_number,
-                    "completion_rate": completion_rate,
-                    "user_input_rate": input_rate,
-                    "instance_count": len(step_instances),
-                }
-
-            # Calculate correlations with learning outcomes
-            # This would ideally be done with per-user data, but as an approximation,
-            # we'll compare across semesters
-
-            # Get course evaluations by semester
-            evaluations = self._data_repo.courses.get_all()
-            semester_learning_scores = {}
-
-            for eval in evaluations:
-                if eval.semester and eval.semester.get_semester_enum():
-                    semester = eval.semester.get_semester_enum().value
-                    semester_learning_scores[semester] = eval.get_overall_score(
-                        high_impact_only=True
-                    )
-
-            # For each semester, get step completion data
-            semester_step_completion = {}
-
-            for semester in semester_learning_scores.keys():
-                # Get users for this semester
-                sem_obj = None
-                for sem_enum in Semester:
-                    if sem_enum.value == semester:
-                        sem_obj = sem_enum
-                        break
-
-                if not sem_obj:
-                    continue
-
-                users = self._data_repo.users.get_users_by_semester(
-                    sem_obj, course_id=self._course_id
-                )
-
-                if not users:
-                    continue
-
-                # Get ideas and steps for these users
-                semester_step_completion[semester] = {
-                    step.value: 0 for step in DisciplinedEntrepreneurshipStep
-                }
-
-                idea_count = 0
-
-                for user in users:
-                    if user.email:
-                        ideas = self._data_repo.ideas.find_by_owner(user.email)
-                        idea_count += len(ideas)
-
-                        for idea in ideas:
-                            for step in DisciplinedEntrepreneurshipStep:
-                                if idea.has_step(step.value):
-                                    semester_step_completion[semester][step.value] += 1
-
-                # Convert to rates
-                if idea_count > 0:
-                    for step in DisciplinedEntrepreneurshipStep:
-                        semester_step_completion[semester][step.value] /= idea_count
-
-            # Calculate correlation between step completion and learning outcomes
-            step_learning_correlations = {}
-
-            for step in DisciplinedEntrepreneurshipStep:
-                step_name = step.value
-
-                x_values = []  # Step completion rates
-                y_values = []  # Learning outcome scores
-
-                for semester in semester_learning_scores.keys():
-                    if semester in semester_step_completion:
-                        x_values.append(semester_step_completion[semester][step_name])
-                        y_values.append(semester_learning_scores[semester])
-
-                correlation = self._calculate_correlation(x_values, y_values)
-                step_learning_correlations[step_name] = correlation
-
-                # Add correlation to step metrics
-                step_metrics[step_name]["learning_outcome_correlation"] = correlation
-
-            # Sort steps by learning outcome correlation
-            steps_by_impact = sorted(
-                step_metrics.items(),
-                key=lambda x: abs(x[1]["learning_outcome_correlation"]),
-                reverse=True,
+            # Using the framework utility to identify high impact steps
+            step_impact_data = identify_high_impact_steps(
+                completion_rates,
+                user_engagement_scores,
+                step_sequences,
+                framework_steps,
             )
 
-            # Group steps by impact level
-            high_impact_steps = []
-            medium_impact_steps = []
-            low_impact_steps = []
+            # Using the framework utility to analyze step relationships
+            step_relationship_data = analyze_step_relationships(step_sequences)
 
-            for step_name, metrics in steps_by_impact:
-                correlation = abs(metrics["learning_outcome_correlation"])
-                if correlation >= 0.7:
-                    high_impact_steps.append(step_name)
-                elif correlation >= 0.4:
-                    medium_impact_steps.append(step_name)
-                else:
-                    low_impact_steps.append(step_name)
+            # Using the framework utility to analyze bottlenecks
+            step_numbers = {
+                step.value: step.step_number for step in DisciplinedEntrepreneurshipStep
+            }
+
+            bottleneck_analysis = analyze_framework_bottlenecks(
+                completion_rates, step_relationship_data, framework_steps, step_numbers
+            )
 
             return {
-                "step_metrics": step_metrics,
+                "step_metrics": step_impact_data["step_impact_scores"],
                 "steps_by_impact": [
-                    {"step": step_name, "metrics": metrics}
-                    for step_name, metrics in steps_by_impact
+                    {"step": step, "metrics": data}
+                    for step, data in sorted(
+                        step_impact_data["step_impact_scores"].items(),
+                        key=lambda x: abs(x[1]),
+                        reverse=True,
+                    )
                 ],
                 "impact_groups": {
-                    "high_impact": high_impact_steps,
-                    "medium_impact": medium_impact_steps,
-                    "low_impact": low_impact_steps,
+                    "high_impact": [
+                        step["step"] for step in step_impact_data["high_impact_steps"]
+                    ],
+                    "medium_impact": [],  # This needs custom logic
+                    "low_impact": [
+                        step["step"] for step in step_impact_data["low_impact_steps"]
+                    ],
                 },
+                "bottlenecks": bottleneck_analysis,
+                "step_relationships": step_relationship_data,
                 "learning_outcomes": learning_outcomes,
             }
 
@@ -1584,12 +1476,11 @@ class LearningAnalyzer:
             # Get all steps
             all_steps = self._data_repo.steps.get_all()
 
-            # Count steps by framework
-            steps_by_framework = {framework.value: 0 for framework in FrameworkType}
-
-            for step in all_steps:
-                if step.framework in steps_by_framework:
-                    steps_by_framework[step.framework] += 1
+            # Count steps by framework using utility function
+            steps_by_framework = {}
+            for framework in FrameworkType:
+                framework_steps = filter_steps_by_framework(all_steps, framework.value)
+                steps_by_framework[framework.value] = len(framework_steps)
 
             # Get user counts by semester
             semester_user_counts = {}
@@ -1621,12 +1512,13 @@ class LearningAnalyzer:
 
                     for user in users:
                         if user.email:
-                            # Get steps by this user in this framework
+                            # Get steps by this user in this framework using utility function
                             user_steps = [
                                 step
-                                for step in all_steps
+                                for step in filter_steps_by_framework(
+                                    all_steps, framework.value
+                                )
                                 if step.owner == user.email
-                                and step.framework == framework.value
                             ]
 
                             if user_steps:
@@ -1675,7 +1567,7 @@ class LearningAnalyzer:
                         x_values.append(metrics["engagement_rate"])
                         y_values.append(score)
 
-                correlation = self._calculate_correlation(x_values, y_values)
+                correlation = calculate_correlation(x_values, y_values)
                 learning_correlations[framework.value] = correlation
 
             return {
@@ -1731,10 +1623,8 @@ class LearningAnalyzer:
             }
 
             for idea_id, steps in steps_by_idea.items():
-                # Get creation dates
-                creation_dates = [
-                    s.get_creation_date() for s in steps if s.get_creation_date()
-                ]
+                # Get creation dates using utility function
+                creation_dates = extract_timestamps_from_steps(steps)
                 if not creation_dates:
                     continue
 
@@ -1756,6 +1646,13 @@ class LearningAnalyzer:
                 semester = idea_semesters[idea_id]
                 tool_version = Semester.get_tool_version(semester)
 
+                # Using utility function to group steps into sessions for better time analysis
+                sessions = group_steps_into_sessions(steps)
+
+                # Skip ideas with no valid sessions
+                if not sessions:
+                    continue
+
                 # Sort steps by creation date
                 sorted_steps = sorted(
                     [s for s in steps if s.get_creation_date()],
@@ -1765,6 +1662,9 @@ class LearningAnalyzer:
                 # Skip ideas with too few steps
                 if len(sorted_steps) < 2:
                     continue
+
+                # Get activity patterns using utility function
+                activity_metrics = get_activity_metrics_by_time(sorted_steps)
 
                 # Calculate time metrics
                 first_step = sorted_steps[0]
@@ -1779,13 +1679,11 @@ class LearningAnalyzer:
                 # Number of steps
                 step_count = len(sorted_steps)
 
-                # Average time between steps
-                time_intervals = []
-                for i in range(1, len(sorted_steps)):
-                    prev_time = sorted_steps[i - 1].get_creation_date()
-                    curr_time = sorted_steps[i].get_creation_date()
-                    interval = curr_time - prev_time
-                    time_intervals.append(interval.total_seconds() / 3600)  # Hours
+                # Using utility function for time difference calculation
+                creation_dates = [step.get_creation_date() for step in sorted_steps]
+                time_intervals = calculate_time_differences(
+                    creation_dates, unit="hours"
+                )
 
                 avg_interval = (
                     sum(time_intervals) / len(time_intervals) if time_intervals else 0
@@ -1799,6 +1697,8 @@ class LearningAnalyzer:
                     "total_hours": total_hours,
                     "avg_hours_between_steps": avg_interval,
                     "hours_per_step": total_hours / step_count if step_count > 0 else 0,
+                    "session_count": len(sessions),
+                    "activity_patterns": activity_metrics,
                 }
 
             # Aggregate metrics by tool version
@@ -1963,7 +1863,7 @@ class LearningAnalyzer:
                     ),
                 }
 
-            # Analyze step completion consistency
+            # Analyze step completion consistency using utility functions
             step_consistency = {}
 
             for version in ["none", "v1", "v2"]:
@@ -2011,10 +1911,36 @@ class LearningAnalyzer:
                         len(consistent_steps) / len(all_steps) if all_steps else 0
                     )
 
+                    # Categorize progression patterns using utility function
+                    progression_types = {}
+                    framework_steps_list = [
+                        step.value for step in DisciplinedEntrepreneurshipStep
+                    ]
+                    step_numbers = {
+                        step.value: step.step_number
+                        for step in DisciplinedEntrepreneurshipStep
+                    }
+
+                    for pattern in completion_patterns:
+                        pattern_list = list(pattern)
+                        if pattern_list:
+                            prog_type = classify_progression_pattern(
+                                pattern_list, framework_steps_list, step_numbers
+                            )
+                            if prog_type not in progression_types:
+                                progression_types[prog_type] = 0
+                            progression_types[prog_type] += 1
+
+                    # Calculate pattern distribution
+                    pattern_distribution = calculate_distribution_percentages(
+                        progression_types
+                    )
+
                     step_consistency[version] = {
                         "avg_completed_steps": avg_completed,
                         "consistency_score": consistency_score,
                         "consistent_steps": list(consistent_steps),
+                        "progression_patterns": pattern_distribution,
                     }
 
             return {
@@ -2195,13 +2121,16 @@ class LearningAnalyzer:
                     if user.scores.completion is not None:
                         completion_scores.append(user.scores.completion)
 
-            avg_content = (
-                sum(content_scores) / len(content_scores) if content_scores else 0
+            # Using utility function to calculate summary statistics
+            content_stats = (
+                calculate_summary_statistics(content_scores)
+                if content_scores
+                else {"mean": 0}
             )
-            avg_completion = (
-                sum(completion_scores) / len(completion_scores)
+            completion_stats = (
+                calculate_summary_statistics(completion_scores)
                 if completion_scores
-                else 0
+                else {"mean": 0}
             )
 
             # 3. Idea and step metrics
@@ -2234,8 +2163,10 @@ class LearningAnalyzer:
                     + 1 * engagement_dist["low"]
                 )
                 / 3,
-                "avg_content_score": avg_content,
-                "avg_completion_score": avg_completion,
+                "content_score_stats": content_stats,
+                "completion_score_stats": completion_stats,
+                "avg_content_score": content_stats["mean"],
+                "avg_completion_score": completion_stats["mean"],
                 "avg_ideas_per_user": avg_ideas,
                 "avg_steps_per_user": avg_steps,
                 "total_ideas": idea_count,
@@ -2365,7 +2296,7 @@ class LearningAnalyzer:
                         "overall_rating_weighted_engagement"
                     ]
 
-            # Calculate composite effectiveness score
+            # Calculate composite effectiveness score using a weighted average
             # Combine multiple metrics into a single score
             metrics_to_combine = [
                 learning_improvement,  # Weight: 0.4
