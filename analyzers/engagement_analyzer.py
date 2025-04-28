@@ -15,13 +15,10 @@ from ..data.data_repository import DataRepository
 from ..data.models.enums import (
     UserEngagementLevel,
     UserType,
-    FrameworkType,
     Semester,
     ToolVersion,
-    MetricType,
 )
 
-# Import utility functions
 from ..utils.common_utils import (
     generate_time_periods,
     find_common_subsequences,

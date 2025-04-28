@@ -10,18 +10,7 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from collections import defaultdict, Counter
-import itertools
-import math
-from enum import Enum
 
-from ..data.data_repository import DataRepository
-from ..data.models.enums import (
-    FrameworkType,
-    DisciplinedEntrepreneurshipStep,
-    StartupTacticsStep,
-    Semester,
-    ToolVersion,
-)
 from ..data.data_repository import DataRepository
 from ..data.models.enums import (
     FrameworkType,

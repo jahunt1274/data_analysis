@@ -7,8 +7,8 @@ educational effectiveness across cohorts.
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple, Any, Set, Union
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any, Union
+from datetime import datetime
 from collections import defaultdict
 
 from ..data.data_repository import DataRepository
