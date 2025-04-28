@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from pydantic import BaseModel
 
-from .enums import Semester, EngagementLevel
+from .enums import Semester, UserEngagementLevel
 
 
 class CategoryDistribution(BaseModel):
@@ -56,7 +56,7 @@ class EngagementMetrics(BaseModel):
     last_activity_date: Optional[datetime] = None
     first_activity_date: Optional[datetime] = None
     activity_span_days: Optional[int] = 0
-    engagement_level: EngagementLevel
+    engagement_level: UserEngagementLevel
 
 
 class StepProgressionMetrics(BaseModel):

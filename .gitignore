@@ -172,3 +172,20 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Input and Output Data
+input/*
+output/*
+
+# Log files
+logs/*
+
+# Schema files
+schemas
+
+# Scratch and Experiemental Work
+playground*
+generated_code
+
+# Virtual Environment Info
+fresh_env/
