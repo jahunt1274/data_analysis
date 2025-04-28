@@ -6,7 +6,7 @@ learning outcome measurements for the 15.390 course.
 """
 
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.data.models.enums import Semester, ToolVersion
 from src.utils.safe_ops import safe_lower
@@ -23,8 +23,7 @@ class ScaleValue(BaseModel):
     seven: Optional[str] = Field(default=None, alias="7")
     not_applicable: Optional[str] = Field(default=None, alias="N/A")
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class Scale(BaseModel):
@@ -35,8 +34,7 @@ class Scale(BaseModel):
     best_value: Optional[int] = Field(default=None, alias="best_value")
     type: Optional[str] = None
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class EvaluationQuestion(BaseModel):

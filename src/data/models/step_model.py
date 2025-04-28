@@ -7,11 +7,15 @@ including their relationships to ideas and users.
 
 from typing import Optional, Union
 from datetime import datetime
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 import re
 
 from src.data.models.base_model import ObjectId, DateField
-from src.data.models.enums import FrameworkType, DisciplinedEntrepreneurshipStep, StartupTacticsStep
+from src.data.models.enums import (
+    FrameworkType,
+    DisciplinedEntrepreneurshipStep,
+    StartupTacticsStep,
+)
 
 
 class Step(BaseModel):
@@ -36,8 +40,7 @@ class Step(BaseModel):
     message: Optional[str] = None  # User input for the step
     idea_id: Optional[ObjectId] = None  # ID of the associated idea
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     def get_creation_date(self) -> Optional[datetime]:
         """
@@ -142,6 +145,7 @@ class Step(BaseModel):
         return bool(self.content and self.content.strip())
 
     @field_validator("framework")
+    @classmethod
     def validate_framework(cls, v):
         """Validate that the framework is one of the recognized types."""
         if v and v not in FrameworkType.get_all_values():
@@ -149,6 +153,7 @@ class Step(BaseModel):
         return v
 
     @field_validator("step")
+    @classmethod
     def validate_step(cls, v, values):
         """Validate that the step is appropriate for the framework."""
         if not v:

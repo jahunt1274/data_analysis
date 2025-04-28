@@ -7,7 +7,7 @@ including framework progress, step completion, and ownership information.
 
 from typing import Dict, List, Optional, Union, Any
 from datetime import datetime
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.data.models.base_model import ObjectId, DateField
 from src.data.models.enums import (
@@ -30,8 +30,7 @@ class FrameworkProgress(BaseModel):
     my_journey: Optional[float] = Field(default=0.0, alias="My Journey")
     product_management: Optional[float] = Field(default=0.0, alias="Product Management")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class Idea(BaseModel):
@@ -64,9 +63,7 @@ class Idea(BaseModel):
     # This will store all fields from the idea document regardless of prefix
     steps: Dict[str, Any] = Field(default_factory=dict)
 
-    class Config:
-        populate_by_name = True
-        extra = "allow"
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     @model_validator(mode="before")
     @classmethod

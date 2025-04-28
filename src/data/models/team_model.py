@@ -6,7 +6,7 @@ including team composition and member details.
 """
 
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class TeamMember(BaseModel):
@@ -17,8 +17,7 @@ class TeamMember(BaseModel):
     alt_email: Optional[str] = Field(default=None, alias="alt_email")
     phone: Optional[str] = None
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class Team(BaseModel):
@@ -36,8 +35,7 @@ class Team(BaseModel):
     team_members: List[TeamMember] = Field(default_factory=list, alias="teamMembers")
     teammates_needed: Optional[int] = Field(default=0, alias="teammatesNeeded")
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     def get_member_emails(self) -> List[str]:
         """
@@ -85,6 +83,7 @@ class Team(BaseModel):
         return None
 
     @field_validator("team_members", mode="before")
+    @classmethod
     def validate_team_members(cls, v):
         """Validate team members, ensuring they have valid emails."""
         if not v:

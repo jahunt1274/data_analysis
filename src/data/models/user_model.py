@@ -7,7 +7,7 @@ including their affiliations, profiles, and engagement metrics.
 
 from typing import List, Dict, Optional, Union, Any
 from datetime import datetime
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.data.models.base_model import ObjectId, DateField
 from src.data.models.enums import UserType, UserEngagementLevel
@@ -21,8 +21,7 @@ class Department(BaseModel):
     code: Optional[str] = None
     org_unit_id: Optional[str] = Field(default=None, alias="orgUnitId")
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class Course(BaseModel):
@@ -34,8 +33,7 @@ class Course(BaseModel):
     course_option: Optional[str] = Field(default=None, alias="courseOption")
     primary: Optional[bool] = False
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class StudentAffiliation(BaseModel):
@@ -51,8 +49,7 @@ class StudentAffiliation(BaseModel):
     class_year: Optional[str] = Field(default=None, alias="classYear")
     title: Optional[str] = None
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     def get_user_type(self) -> UserType:
         """Extract the user type from the affiliation data."""
@@ -74,8 +71,7 @@ class OrbitProfilePermissions(BaseModel):
     share_events: Optional[bool] = Field(default=False, alias="share_events")
     share_classes: Optional[bool] = Field(default=False, alias="share_classes")
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class OrbitProfile(BaseModel):
@@ -101,8 +97,7 @@ class OrbitProfile(BaseModel):
     permissions: Optional[OrbitProfilePermissions] = None
     experience: Optional[str] = None  # Entrepreneurial experience level
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class UserScores(BaseModel):
@@ -180,8 +175,7 @@ class User(BaseModel):
     institution: Optional[Institution] = None
     resource_tags: Optional[List[str]] = []
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     def get_user_type(self) -> UserType:
         """
@@ -295,6 +289,7 @@ class User(BaseModel):
         return None
 
     @field_validator("orbit_profile", mode="before")
+    @classmethod
     def validate_orbit_profile(cls, v):
         """Validate the orbit profile field."""
         if v is None:
@@ -302,6 +297,7 @@ class User(BaseModel):
         return v
 
     @field_validator("scores", mode="before")
+    @classmethod
     def validate_scores(cls, v):
         """Validate the scores field."""
         if v is None:
