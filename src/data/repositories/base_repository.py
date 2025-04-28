@@ -27,7 +27,7 @@ import functools
 
 from pydantic import BaseModel
 
-from ..models.base_model import ObjectId
+from src.data.models.base_model import ObjectId
 
 # Type variable for the model type
 T = TypeVar("T", bound=BaseModel)

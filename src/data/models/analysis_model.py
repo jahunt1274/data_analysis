@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from pydantic import BaseModel
 
-from .enums import Semester, UserEngagementLevel
+from src.data.models.enums import Semester, UserEngagementLevel
 
 
 class CategoryDistribution(BaseModel):

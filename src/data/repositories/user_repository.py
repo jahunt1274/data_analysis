@@ -11,9 +11,11 @@ from typing import Dict, List, Optional, Set, Tuple, Union, Any
 from datetime import datetime
 from pathlib import Path
 
-from ..models.user_model import User
-from ..models.enums import UserEngagementLevel, UserType, Semester
-from .base_repository import BaseRepository
+from src.data.models.user_model import User
+from src.data.models.enums import UserEngagementLevel, UserType, Semester
+from src.data.repositories.base_repository import BaseRepository
+
+from src.utils.safe_ops import safe_lower
 
 
 class UserRepository(BaseRepository[User]):
@@ -259,7 +261,7 @@ class UserRepository(BaseRepository[User]):
             user
             for user in users
             if user.get_department()
-            and department.lower() in user.get_department().lower()
+            and safe_lower(department) in safe_lower(user.get_department())
         ]
 
     def get_users_by_creation_date_range(
@@ -310,7 +312,10 @@ class UserRepository(BaseRepository[User]):
             for user in users
             if user.orbit_profile
             and user.orbit_profile.interest
-            and any(interest.lower() in i.lower() for i in user.orbit_profile.interest)
+            and any(
+                safe_lower(interest) in safe_lower(i)
+                for i in user.orbit_profile.interest
+            )
         ]
 
     def get_users_by_experience(
@@ -338,7 +343,7 @@ class UserRepository(BaseRepository[User]):
             for user in users
             if user.orbit_profile
             and user.orbit_profile.experience
-            and experience.lower() in user.orbit_profile.experience.lower()
+            and safe_lower(experience) in safe_lower(user.orbit_profile.experience)
         ]
 
     def get_users_in_teams(self, team_emails: Set[str]) -> List[User]:

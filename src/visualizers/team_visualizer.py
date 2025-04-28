@@ -16,9 +16,9 @@ import seaborn as sns
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 
-from ..analyzers.team_analyzer import TeamAnalyzer
-from ..data.models.enums import FrameworkType
-from ..utils.visualization_creation_utils import (
+from src.analyzers.team_analyzer import TeamAnalyzer
+from src.data.models.enums import FrameworkType
+from src.utils.visualization_creation_utils import (
     create_figure,
     create_subplot_grid,
     configure_axes,
@@ -29,7 +29,7 @@ from ..utils.visualization_creation_utils import (
     save_figure,
     add_data_table,
 )
-from ..utils.visualization_data_utils import generate_filename
+from src.utils.visualization_data_utils import generate_filename
 
 
 class TeamVisualizer:

@@ -11,8 +11,8 @@ from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
 from collections import defaultdict
 
-from ..data.data_repository import DataRepository
-from ..data.models.enums import (
+from src.data.data_repository import DataRepository
+from src.data.models.enums import (
     DisciplinedEntrepreneurshipStep,
     FrameworkType,
     Semester,
@@ -20,20 +20,20 @@ from ..data.models.enums import (
     UserEngagementLevel,
     UserType,
 )
-from ..data.models.course_model import CourseEvaluation
-from ..utils.common_utils import (
+from src.data.models.course_model import CourseEvaluation
+from src.utils.common_utils import (
     calculate_correlation,
     calculate_distribution_percentages,
     calculate_summary_statistics,
     calculate_time_differences,
 )
-from ..utils.framework_analysis_utils import (
+from src.utils.framework_analysis_utils import (
     analyze_framework_bottlenecks,
     analyze_step_relationships,
     classify_progression_pattern,
     identify_high_impact_steps,
 )
-from ..utils.data_processing_utils import (
+from src.utils.data_processing_utils import (
     get_activity_metrics_by_time,
     get_step_completion_data,
     group_steps_into_sessions,

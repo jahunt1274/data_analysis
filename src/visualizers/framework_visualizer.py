@@ -18,9 +18,9 @@ from pathlib import Path
 from datetime import datetime
 from matplotlib.figure import Figure
 
-from ..data.models.enums import FrameworkType, Semester
-from ..analyzers.framework_analyzer import FrameworkAnalyzer
-from ..utils.visualization_creation_utils import (
+from src.data.models.enums import FrameworkType, Semester
+from src.analyzers.framework_analyzer import FrameworkAnalyzer
+from src.utils.visualization_creation_utils import (
     create_figure,
     configure_axes,
     get_color_palette,
@@ -33,7 +33,7 @@ from ..utils.visualization_creation_utils import (
     wrap_labels,
     save_figure,
 )
-from ..utils.visualization_data_utils import (
+from src.utils.visualization_data_utils import (
     generate_filename,
     get_output_path,
 )

@@ -14,17 +14,17 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 
 from config.settings import Settings
-from data.models.enums import FrameworkType
+from src.data.models.enums import FrameworkType
 
-from visualizers.engagement_visualizer import EngagementVisualizer
-from visualizers.framework_visualizer import FrameworkVisualizer
-from visualizers.learning_visualizer import LearningVisualizer
-from visualizers.team_visualizer import TeamVisualizer
+from src.visualizers.engagement_visualizer import EngagementVisualizer
+from src.visualizers.framework_visualizer import FrameworkVisualizer
+from src.visualizers.learning_visualizer import LearningVisualizer
+from src.visualizers.team_visualizer import TeamVisualizer
 
-from analyzers.engagement_analyzer import EngagementAnalyzer
-from analyzers.framework_analyzer import FrameworkAnalyzer
-from analyzers.learning_analyzer import LearningAnalyzer
-from analyzers.team_analyzer import TeamAnalyzer
+from src.analyzers.engagement_analyzer import EngagementAnalyzer
+from src.analyzers.framework_analyzer import FrameworkAnalyzer
+from src.analyzers.learning_analyzer import LearningAnalyzer
+from src.analyzers.team_analyzer import TeamAnalyzer
 
 
 class VisualizationManager:

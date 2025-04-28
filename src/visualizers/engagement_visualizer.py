@@ -10,9 +10,11 @@ import logging
 from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path
 import numpy as np
+import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
-from ..analyzers.engagement_analyzer import EngagementAnalyzer
-from ..utils.visualization_creation_utils import (
+
+from src.analyzers.engagement_analyzer import EngagementAnalyzer
+from src.utils.visualization_creation_utils import (
     create_figure,
     configure_axes,
     save_figure,
@@ -27,7 +29,7 @@ from ..utils.visualization_creation_utils import (
     add_data_table,
     wrap_labels,
 )
-from ..utils.visualization_data_utils import (
+from src.utils.visualization_data_utils import (
     export_data_with_visualization,
     create_report_directory,
 )
@@ -1256,7 +1258,7 @@ class EngagementVisualizer:
         """
         # If data not provided, get it from analyzer using enums
         if comparison_data is None:
-            from ..data.models.enums import Semester
+            from data.models.enums import Semester
 
             if semesters is None:
                 # Default to comparing FALL_2023 and SPRING_2024
@@ -2793,7 +2795,7 @@ class EngagementVisualizer:
 
         # 6. Generate Semester Comparison
         self._logger.info("Generating semester comparison visualization...")
-        from ..data.models.enums import Semester
+        from data.models.enums import Semester
 
         comparison_data = self._analyzer.compare_semester_engagement(
             semester1=Semester.FALL_2023,

@@ -8,7 +8,8 @@ learning outcome measurements for the 15.390 course.
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
-from .enums import Semester, ToolVersion
+from src.data.models.enums import Semester, ToolVersion
+from src.utils.safe_ops import safe_lower
 
 
 class ScaleValue(BaseModel):
@@ -72,7 +73,9 @@ class EvaluationQuestion(BaseModel):
             "effectively structured",
         ]
 
-        return any(phrase in self.question.lower() for phrase in high_impact_phrases)
+        return any(
+            phrase in safe_lower(self.question) for phrase in high_impact_phrases
+        )
 
 
 class EvaluationMetric(BaseModel):
@@ -179,7 +182,7 @@ class CourseEvaluation(BaseModel):
         """
         if self.tool_version:
             for version in ToolVersion:
-                if version.value == self.tool_version.lower():
+                if version.value == safe_lower(self.tool_version):
                     return version
 
         if self.semester:
@@ -224,7 +227,9 @@ class CourseEvaluation(BaseModel):
             float: Section score
         """
         for metric in self.evaluation_metrics:
-            if metric.section and metric.section.lower() == section_name.lower():
+            if metric.section and safe_lower(metric.section) == safe_lower(
+                section_name
+            ):
                 return metric.get_average_score(high_impact_only)
 
         return 0.0

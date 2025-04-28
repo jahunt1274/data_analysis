@@ -9,8 +9,9 @@ from typing import List, Dict, Optional, Union, Any
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
-from .base_model import ObjectId, DateField
-from .enums import UserType, UserEngagementLevel
+from src.data.models.base_model import ObjectId, DateField
+from src.data.models.enums import UserType, UserEngagementLevel
+from src.utils.safe_ops import safe_lower
 
 
 class Department(BaseModel):
@@ -55,7 +56,7 @@ class StudentAffiliation(BaseModel):
 
     def get_user_type(self) -> UserType:
         """Extract the user type from the affiliation data."""
-        affiliation_dict = self.dict(by_alias=True)
+        affiliation_dict = self.model_dump(by_alias=True)
         return UserType.from_affiliation(affiliation_dict)
 
 
@@ -144,7 +145,7 @@ class User(BaseModel):
     created: Optional[Union[DateField, datetime]] = None
     token: Optional[str] = None
     views: Optional[List[int]] = []
-    saved_classes: Optional[List[ObjectId]] = []
+    saved_classes: Optional[List[str]] = []
     enrollments: Optional[List[str]] = []  # Course enrollments like "15.390"
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -153,7 +154,7 @@ class User(BaseModel):
     aerospace_innovation_certificate: Optional[bool] = False
     name: Optional[str] = None
     orbit_profile: Optional[OrbitProfile] = Field(default=None, alias="orbitProfile")
-    saved_opportunities: Optional[List[ObjectId]] = []
+    saved_opportunities: Optional[List[str]] = []
     has_onboarded: Optional[bool] = False
     personal_email: Optional[str] = None
     kerberos: Optional[str] = None  # MIT Kerberos username
@@ -173,7 +174,7 @@ class User(BaseModel):
     password: Optional[str] = None
     last_login: Optional[Union[DateField, datetime, int]] = None
     profile_photo: Optional[str] = None
-    following_ideas: Optional[List[Union[ObjectId, Dict]]] = []
+    # following_ideas: Optional[List[Union[ObjectId, Dict]]] = []
     type: Optional[str] = None
     applications: Optional[List[str]] = []
     institution: Optional[Institution] = None
@@ -196,13 +197,13 @@ class User(BaseModel):
         # Try institution.affiliation
         if self.institution and self.institution.affiliation:
             return UserType.from_affiliation(
-                self.institution.affiliation.dict(by_alias=True)
+                self.institution.affiliation.model_dump(by_alias=True)
             )
 
         # Try type field
         if self.type:
             for member in UserType:
-                if member.value.lower() == self.type.lower():
+                if safe_lower(member.value) == safe_lower(self.type):
                     return member
 
         # Default

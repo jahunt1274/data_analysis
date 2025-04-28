@@ -11,15 +11,16 @@ from typing import Dict, List, Optional, Set, Tuple, Union, Any
 from datetime import datetime
 from pathlib import Path
 
-from ..models.idea_model import Idea
-from ..models.enums import (
+from src.data.models.idea_model import Idea
+from src.data.models.enums import (
     FrameworkType,
     DisciplinedEntrepreneurshipStep,
     StepPrefix,
     IdeaCategory,
 )
-from .base_repository import BaseRepository
-from .user_repository import InMemoryDatabase
+from src.data.repositories.base_repository import BaseRepository
+from src.data.repositories.user_repository import InMemoryDatabase
+from src.utils.safe_ops import safe_lower
 
 
 class IdeaRepository(BaseRepository[Idea]):
@@ -232,7 +233,7 @@ class IdeaRepository(BaseRepository[Idea]):
         return [
             idea
             for idea in self.get_all()
-            if idea.category and idea.category.lower() == category_name.lower()
+            if idea.category and safe_lower(idea.category) == safe_lower(category_name)
         ]
 
     def find_by_creation_date_range(
@@ -573,12 +574,12 @@ class IdeaRepository(BaseRepository[Idea]):
         Returns:
             List[Idea]: List of matching ideas
         """
-        keyword = keyword.lower()
+        keyword = safe_lower(keyword)
         return [
             idea
             for idea in self.get_all()
-            if (idea.title and keyword in idea.title.lower())
-            or (idea.description and keyword in idea.description.lower())
+            if (idea.title and keyword in safe_lower(idea.title))
+            or (idea.description and keyword in safe_lower(idea.description))
         ]
 
     def get_category_step_completion_correlation(self) -> Dict[str, Dict[str, float]]:

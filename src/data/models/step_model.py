@@ -10,8 +10,8 @@ from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 import re
 
-from .base_model import ObjectId, DateField
-from .enums import FrameworkType, DisciplinedEntrepreneurshipStep, StartupTacticsStep
+from src.data.models.base_model import ObjectId, DateField
+from src.data.models.enums import FrameworkType, DisciplinedEntrepreneurshipStep, StartupTacticsStep
 
 
 class Step(BaseModel):

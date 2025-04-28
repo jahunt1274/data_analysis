@@ -9,14 +9,15 @@ from typing import Dict, List, Optional, Union, Any
 from datetime import datetime
 from pydantic import BaseModel, Field, model_validator
 
-from .base_model import ObjectId, DateField
-from .enums import (
+from src.data.models.base_model import ObjectId, DateField
+from src.data.models.enums import (
     FrameworkType,
     DisciplinedEntrepreneurshipStep,
     StartupTacticsStep,
     StepPrefix,
     IdeaCategory,
 )
+from src.utils.safe_ops import safe_lower
 
 
 class FrameworkProgress(BaseModel):
@@ -133,7 +134,7 @@ class Idea(BaseModel):
 
         # Access using getattr to handle the spaces in the field names
         progress_value = getattr(
-            self.progress, framework_value.lower().replace(" ", "_"), 0.0
+            self.progress, safe_lower(framework_value).replace(" ", "_"), 0.0
         )
 
         # Ensure it's a decimal between 0 and 1
@@ -239,7 +240,7 @@ class Idea(BaseModel):
 
         # Try to match with defined categories
         for cat in IdeaCategory:
-            if cat.value.lower() == self.category.lower():
+            if safe_lower(cat.value) == safe_lower(self.category):
                 return cat
 
         return IdeaCategory.OTHER

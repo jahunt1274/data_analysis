@@ -11,21 +11,21 @@ from typing import Dict, List, Optional, Tuple, Any, Set
 from datetime import datetime, timedelta
 from collections import defaultdict
 
-from ..data.data_repository import DataRepository
-from ..data.models.enums import (
+from src.data.data_repository import DataRepository
+from src.data.models.enums import (
     UserEngagementLevel,
     UserType,
     Semester,
     ToolVersion,
 )
 
-from ..utils.common_utils import (
+from src.utils.common_utils import (
     generate_time_periods,
     find_common_subsequences,
     calculate_summary_statistics,
     classify_engagement_level,
 )
-from ..utils.data_processing_utils import (
+from src.utils.data_processing_utils import (
     extract_timestamps_from_steps,
     group_steps_into_sessions,
     categorize_session_lengths,

@@ -12,14 +12,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from collections import defaultdict
 
-from ..models.step_model import Step
-from ..models.enums import (
+from src.data.models.step_model import Step
+from src.data.models.enums import (
     FrameworkType,
     DisciplinedEntrepreneurshipStep,
     StartupTacticsStep,
 )
-from .base_repository import BaseRepository
-from .user_repository import InMemoryDatabase
+from src.data.repositories.base_repository import BaseRepository
+from src.data.repositories.user_repository import InMemoryDatabase
 
 
 class StepRepository(BaseRepository[Step]):

@@ -12,13 +12,13 @@ from typing import Dict, List, Optional, Any
 
 # Future implementation for settings
 from config.settings import Settings
-from data.repositories.user_repository import UserRepository
-from data.repositories.idea_repository import IdeaRepository
-from data.repositories.step_repository import StepRepository
-from data.repositories.team_repository import TeamRepository
-from data.repositories.course_repository import CourseRepository
-from data.repositories.user_repository import InMemoryDatabase
-from data.models.enums import DisciplinedEntrepreneurshipStep, IdeaCategory
+from src.data.repositories.user_repository import UserRepository
+from src.data.repositories.idea_repository import IdeaRepository
+from src.data.repositories.step_repository import StepRepository
+from src.data.repositories.team_repository import TeamRepository
+from src.data.repositories.course_repository import CourseRepository
+from src.data.repositories.user_repository import InMemoryDatabase
+from src.data.models.enums import DisciplinedEntrepreneurshipStep, IdeaCategory
 
 
 class DataRepository:
@@ -180,35 +180,51 @@ class DataRepository:
         """
         self._ensure_connected()
 
-        try:
-            return {
-                "users": {
-                    "count": len(self._user_repo.get_all()),
-                    "by_type": self._user_repo.get_user_type_distribution(),
-                    "by_engagement": self._user_repo.get_engagement_distribution(),
-                },
-                "ideas": {
-                    "count": len(self._idea_repo.get_all()),
-                    "by_category": self._idea_repo.get_idea_count_by_category(),
-                    "avg_steps_per_idea": self._idea_repo.get_average_steps_per_idea(),
-                },
-                "steps": {
-                    "count": len(self._step_repo.get_all()),
-                    "by_framework": self._step_repo.get_step_count_by_framework(),
-                },
-                "teams": {
-                    "count": len(self._team_repo.get_all()),
-                    "avg_team_size": self._team_repo.get_avg_team_size(),
-                    "team_size_distribution": self._team_repo.get_team_sizes(),
-                },
-                "course_evaluations": {
-                    "count": len(self._course_repo.get_all()),
-                    "semesters": self._course_repo.get_semester_order(),
-                },
-            }
-        except Exception as e:
-            self._logger.error(f"Error creating data summary: {e}")
-            return {"error": str(e)}
+        # try:
+        
+        user_count = len(self._user_repo.get_all())
+        by_type = self._user_repo.get_user_type_distribution()
+        by_engagement = self._user_repo.get_engagement_distribution()
+        idea_count = len(self._idea_repo.get_all())
+        by_category = self._idea_repo.get_idea_count_by_category()
+        avg_steps_per_idea = self._idea_repo.get_average_steps_per_idea()
+        step_count = len(self._step_repo.get_all())
+        by_framework = self._step_repo.get_step_count_by_framework()
+        team_count = len(self._team_repo.get_all())
+        avg_team_size = self._team_repo.get_avg_team_size()
+        team_size_distribution = self._team_repo.get_team_sizes()
+        course_count = len(self._course_repo.get_all())
+        semesters = self._course_repo.get_semester_order()
+        
+        return {
+            "users": {
+                "count": len(self._user_repo.get_all()),
+                "by_type": self._user_repo.get_user_type_distribution(),
+                "by_engagement": self._user_repo.get_engagement_distribution(),
+            },
+            "ideas": {
+                "count": len(self._idea_repo.get_all()),
+                "by_category": self._idea_repo.get_idea_count_by_category(),
+                "avg_steps_per_idea": self._idea_repo.get_average_steps_per_idea(),
+            },
+            "steps": {
+                "count": len(self._step_repo.get_all()),
+                "by_framework": self._step_repo.get_step_count_by_framework(),
+            },
+            "teams": {
+                "count": len(self._team_repo.get_all()),
+                "avg_team_size": self._team_repo.get_avg_team_size(),
+                "team_size_distribution": self._team_repo.get_team_sizes(),
+            },
+            "course_evaluations": {
+                "count": len(self._course_repo.get_all()),
+                "semesters": self._course_repo.get_semester_order(),
+            },
+        }
+
+        # except Exception as e:
+        #     self._logger.error(f"Error creating data summary: {e}")
+        #     return {"error": str(e)}
 
     def get_user_ideas_steps(self, email: str) -> Dict[str, Any]:
         """

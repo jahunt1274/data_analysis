@@ -11,19 +11,19 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 from collections import defaultdict, Counter
 
-from ..data.data_repository import DataRepository
-from ..data.models.enums import (
+from src.data.data_repository import DataRepository
+from src.data.models.enums import (
     FrameworkType,
     DisciplinedEntrepreneurshipStep,
     StartupTacticsStep,
     Semester,
     ToolVersion,
 )
-from ..utils.common_utils import (
+from src.utils.common_utils import (
     calculate_correlation,
     group_values_into_ranges,
 )
-from ..utils.framework_analysis_utils import (
+from src.utils.framework_analysis_utils import (
     ProgressionType,
     classify_progression_pattern,
     get_step_sequences,

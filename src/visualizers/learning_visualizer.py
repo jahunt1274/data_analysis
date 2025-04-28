@@ -14,8 +14,8 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 
-from ..data.models.enums import Semester
-from ..utils.visualization_creation_utils import (
+from src.data.models.enums import Semester
+from src.utils.visualization_creation_utils import (
     create_figure,
     configure_axes,
     plot_bar,
@@ -24,7 +24,7 @@ from ..utils.visualization_creation_utils import (
     save_figure,
     create_visualization,
 )
-from ..utils.visualization_data_utils import (
+from src.utils.visualization_data_utils import (
     prepare_scatter_plot_data,
     prepare_heatmap_data,
     create_report_directory,

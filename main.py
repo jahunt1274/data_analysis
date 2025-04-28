@@ -15,19 +15,19 @@ from datetime import datetime
 import json
 
 from config.settings import Settings
-from data.models.enums import FrameworkType, Semester, MetricType
+from src.data.models.enums import FrameworkType, Semester, MetricType
 
 # Import analyzers
-from analyzers.engagement_analyzer import EngagementAnalyzer
-from analyzers.framework_analyzer import FrameworkAnalyzer
-from analyzers.learning_analyzer import LearningAnalyzer
-from analyzers.team_analyzer import TeamAnalyzer
+from src.analyzers.engagement_analyzer import EngagementAnalyzer
+from src.analyzers.framework_analyzer import FrameworkAnalyzer
+from src.analyzers.learning_analyzer import LearningAnalyzer
+from src.analyzers.team_analyzer import TeamAnalyzer
 
 # Import data repository
-from data.data_repository import DataRepository
+from src.data.data_repository import DataRepository
 
 # Import visualization manager
-from visualizers.visualization_manager import VisualizationManager
+from src.visualizers.visualization_manager import VisualizationManager
 
 
 def setup_logging(log_dir=None, log_level=logging.INFO):

@@ -10,10 +10,11 @@ import logging
 from typing import Dict, List, Optional, Set, Tuple, Union, Any
 from pathlib import Path
 
-from ..models.team_model import Team
-from ..models.enums import Semester
-from .base_repository import BaseRepository
-from .user_repository import InMemoryDatabase
+from src.data.models.team_model import Team
+from src.data.models.enums import Semester
+from src.data.repositories.base_repository import BaseRepository
+from src.data.repositories.user_repository import InMemoryDatabase
+from src.utils.safe_ops import safe_lower
 
 
 class TeamRepository(BaseRepository[Team]):
@@ -142,9 +143,9 @@ class TeamRepository(BaseRepository[Team]):
         Returns:
             Optional[Team]: Team or None if not found
         """
-        team_name = team_name.lower()
+        team_name = safe_lower(team_name)
         for team in self.get_all():
-            if team.team_name and team.team_name.lower() == team_name:
+            if team.team_name and safe_lower(team.team_name) == team_name:
                 return team
         return None
 
@@ -437,13 +438,13 @@ class TeamRepository(BaseRepository[Team]):
             List[Team]: List of matching teams
         """
         result = []
-        keywords = [kw.lower() for kw in keywords]
+        keywords = [safe_lower(kw) for kw in keywords]
 
         for team in self.get_all():
             if not team.description:
                 continue
 
-            desc_lower = team.description.lower()
+            desc_lower = safe_lower(team.description)
             if any(kw in desc_lower for kw in keywords):
                 result.append(team)
 

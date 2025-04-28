@@ -10,10 +10,16 @@ import logging
 from typing import Dict, List, Optional, Set, Tuple, Union, Any
 from pathlib import Path
 
-from ..models.course_model import CourseEvaluation, EvaluationMetric, EvaluationQuestion
-from ..models.enums import Semester, ToolVersion
-from .base_repository import BaseRepository
-from .user_repository import InMemoryDatabase
+from src.data.models.course_model import (
+    CourseEvaluation,
+    EvaluationMetric,
+    EvaluationQuestion,
+)
+from src.data.models.enums import Semester, ToolVersion
+from src.data.repositories.base_repository import BaseRepository
+from src.data.repositories.user_repository import InMemoryDatabase
+
+from src.utils.safe_ops import safe_lower
 
 
 class CourseRepository(BaseRepository[CourseEvaluation]):
@@ -208,7 +214,7 @@ class CourseRepository(BaseRepository[CourseEvaluation]):
         sections = set()
         for metric in eval1.evaluation_metrics + eval2.evaluation_metrics:
             if metric.section:
-                sections.add(metric.section.lower())
+                sections.add(safe_lower(metric.section))
 
         for section in sections:
             result[f"section_{section}"] = {
@@ -324,7 +330,7 @@ class CourseRepository(BaseRepository[CourseEvaluation]):
         for eval in self.get_all():
             for metric in eval.evaluation_metrics:
                 if metric.section:
-                    sections.add(metric.section.lower())
+                    sections.add(safe_lower(metric.section))
 
         # Calculate scores by section and semester
         for section in sections:
@@ -348,7 +354,7 @@ class CourseRepository(BaseRepository[CourseEvaluation]):
             Dict[str, float]: Mapping from semester to question score
         """
         result = {}
-        question_text_lower = question_text.lower()
+        question_text_lower = safe_lower(question_text)
 
         for eval in self.get_all():
             if not eval.semester or not eval.semester.get_semester_enum():
@@ -359,9 +365,8 @@ class CourseRepository(BaseRepository[CourseEvaluation]):
             # Search for matching question
             for metric in eval.evaluation_metrics:
                 for question in metric.questions:
-                    if (
+                    if question.question and question_text_lower in safe_lower(
                         question.question
-                        and question_text_lower in question.question.lower()
                     ):
                         result[semester] = (
                             question.avg if question.avg is not None else 0.0
@@ -422,7 +427,7 @@ class CourseRepository(BaseRepository[CourseEvaluation]):
             Dict[str, EvaluationMetric]: Mapping from semester to metrics
         """
         result = {}
-        section_name_lower = section_name.lower()
+        section_name_lower = safe_lower(section_name)
 
         for eval in self.get_all():
             if not eval.semester or not eval.semester.get_semester_enum():
@@ -432,7 +437,7 @@ class CourseRepository(BaseRepository[CourseEvaluation]):
 
             # Find matching section
             for metric in eval.evaluation_metrics:
-                if metric.section and metric.section.lower() == section_name_lower:
+                if metric.section and safe_lower(metric.section) == section_name_lower:
                     result[semester] = metric
                     break
 
@@ -464,7 +469,7 @@ class CourseRepository(BaseRepository[CourseEvaluation]):
         Returns:
             float: Average score
         """
-        question_text_lower = question_text.lower()
+        question_text_lower = safe_lower(question_text)
         scores = []
 
         for eval in self.get_all():
@@ -473,7 +478,7 @@ class CourseRepository(BaseRepository[CourseEvaluation]):
                 for question in metric.questions:
                     if (
                         question.question
-                        and question_text_lower in question.question.lower()
+                        and question_text_lower in safe_lower(question.question)
                         and question.avg is not None
                     ):
                         scores.append(question.avg)
