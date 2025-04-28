@@ -116,7 +116,7 @@ class IdeaRepository(BaseRepository[Idea]):
                 file_path = self._config.CATEGORIZED_IDEAS_PATH
             else:
                 # Default path if not specified in config
-                file_path = "input/raw/categorized_ideas.json"
+                file_path = "input/categorized_ideas_latest.json"
 
             if not Path(file_path).exists():
                 self._logger.warning(f"Categorized ideas file not found: {file_path}")

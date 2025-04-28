@@ -144,7 +144,7 @@ class Step(BaseModel):
         """
         return bool(self.content and self.content.strip())
 
-    @field_validator("framework")
+    @field_validator("framework", mode="after")
     @classmethod
     def validate_framework(cls, v):
         """Validate that the framework is one of the recognized types."""
@@ -152,22 +152,22 @@ class Step(BaseModel):
             raise ValueError(f"Framework {v} is not recognized")
         return v
 
-    @field_validator("step")
+    @field_validator("step", mode="after")
     @classmethod
-    def validate_step(cls, v, values):
+    def validate_step(cls, v, info):
         """Validate that the step is appropriate for the framework."""
         if not v:
             return v
 
-        framework = values.get("framework")
+        framework = info.data.get("framework") if hasattr(info, "data") else None
         if not framework:
             return v
 
         # Check if step is valid for the framework
-        if framework == FrameworkType.DISCIPLINED_ENTREPRENEURSHIP:
+        if framework == FrameworkType.DISCIPLINED_ENTREPRENEURSHIP.value:
             if v not in DisciplinedEntrepreneurshipStep.get_all_step_values():
                 raise ValueError(f"Step {v} is not valid for {framework}")
-        elif framework == FrameworkType.STARTUP_TACTICS:
+        elif framework == FrameworkType.STARTUP_TACTICS.value:
             if v not in StartupTacticsStep.get_all_step_values():
                 raise ValueError(f"Step {v} is not valid for {framework}")
 

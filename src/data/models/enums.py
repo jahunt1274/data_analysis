@@ -19,6 +19,10 @@ class FrameworkType(str, Enum):
     STARTUP_TACTICS = "Startup Tactics"
     MY_JOURNEY = "My Journey"
     PRODUCT_MANAGEMENT = "Product Management"
+    DISCIPLINED_ENTREPRENEURSHIP_FORMATTED = "disciplined-entrepreneurship"
+    STARTUP_TACTICS_FORMATTED = "startup-tactics"
+    MY_JOURNEY_FORMATTED = "my-journey"
+    PRODUCT_MANAGEMENT_FORMATTED = "product-management"
 
     @classmethod
     def get_all_values(cls) -> List[str]:

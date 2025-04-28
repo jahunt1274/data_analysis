@@ -127,13 +127,10 @@ class DataRepository:
         # Define file mappings for each repository
         file_mappings = {
             "users.json": (self._user_repo, "users"),
-            "user.json": (self._user_repo, "users"),
             "ideas.json": (self._idea_repo, "ideas"),
-            "idea.json": (self._idea_repo, "ideas"),
             "steps.json": (self._step_repo, "steps"),
-            "de_teams.json": (self._team_repo, "teams"),
-            "teams.json": (self._team_repo, "teams"),
-            "course_evaluation.json": (self._course_repo, "course_evaluations"),
+            "de_team_user.json": (self._team_repo, "teams"),
+            "course_evaluations.json": (self._course_repo, "course_evaluations"),
         }
 
         # Load each file if it exists
@@ -158,11 +155,11 @@ class DataRepository:
                     results[filename] = 0
 
         # Load categorized ideas if available
-        categorized_ideas_path = path / "categorized_ideas.json"
+        categorized_ideas_path = path / "categorized_ideas_latest.json"
         if categorized_ideas_path.exists():
             try:
                 self._idea_repo._load_categorized_ideas()
-                results["categorized_ideas.json"] = "loaded"
+                results["categorized_ideas_latest.json"] = "loaded"
             except Exception as e:
                 self._logger.error(f"Error loading categorized ideas: {e}")
 
@@ -180,51 +177,51 @@ class DataRepository:
         """
         self._ensure_connected()
 
-        # try:
-        
-        user_count = len(self._user_repo.get_all())
-        by_type = self._user_repo.get_user_type_distribution()
-        by_engagement = self._user_repo.get_engagement_distribution()
-        idea_count = len(self._idea_repo.get_all())
-        by_category = self._idea_repo.get_idea_count_by_category()
-        avg_steps_per_idea = self._idea_repo.get_average_steps_per_idea()
-        step_count = len(self._step_repo.get_all())
-        by_framework = self._step_repo.get_step_count_by_framework()
-        team_count = len(self._team_repo.get_all())
-        avg_team_size = self._team_repo.get_avg_team_size()
-        team_size_distribution = self._team_repo.get_team_sizes()
-        course_count = len(self._course_repo.get_all())
-        semesters = self._course_repo.get_semester_order()
-        
-        return {
-            "users": {
-                "count": len(self._user_repo.get_all()),
-                "by_type": self._user_repo.get_user_type_distribution(),
-                "by_engagement": self._user_repo.get_engagement_distribution(),
-            },
-            "ideas": {
-                "count": len(self._idea_repo.get_all()),
-                "by_category": self._idea_repo.get_idea_count_by_category(),
-                "avg_steps_per_idea": self._idea_repo.get_average_steps_per_idea(),
-            },
-            "steps": {
-                "count": len(self._step_repo.get_all()),
-                "by_framework": self._step_repo.get_step_count_by_framework(),
-            },
-            "teams": {
-                "count": len(self._team_repo.get_all()),
-                "avg_team_size": self._team_repo.get_avg_team_size(),
-                "team_size_distribution": self._team_repo.get_team_sizes(),
-            },
-            "course_evaluations": {
-                "count": len(self._course_repo.get_all()),
-                "semesters": self._course_repo.get_semester_order(),
-            },
-        }
+        try:
 
-        # except Exception as e:
-        #     self._logger.error(f"Error creating data summary: {e}")
-        #     return {"error": str(e)}
+            # user_count = len(self._user_repo.get_all())
+            # by_type = self._user_repo.get_user_type_distribution()
+            # by_engagement = self._user_repo.get_engagement_distribution()
+            # idea_count = len(self._idea_repo.get_all())
+            # by_category = self._idea_repo.get_idea_count_by_category()
+            # avg_steps_per_idea = self._idea_repo.get_average_steps_per_idea()
+            # step_count = len(self._step_repo.get_all())
+            # by_framework = self._step_repo.get_step_count_by_framework()
+            # team_count = len(self._team_repo.get_all())
+            # avg_team_size = self._team_repo.get_avg_team_size()
+            # team_size_distribution = self._team_repo.get_team_sizes()
+            # course_count = len(self._course_repo.get_all())
+            # semesters = self._course_repo.get_semester_order()
+
+            return {
+                "users": {
+                    "count": len(self._user_repo.get_all()),
+                    "by_type": self._user_repo.get_user_type_distribution(),
+                    "by_engagement": self._user_repo.get_engagement_distribution(),
+                },
+                "ideas": {
+                    "count": len(self._idea_repo.get_all()),
+                    "by_category": self._idea_repo.get_idea_count_by_category(),
+                    "avg_steps_per_idea": self._idea_repo.get_average_steps_per_idea(),
+                },
+                "steps": {
+                    "count": len(self._step_repo.get_all()),
+                    "by_framework": self._step_repo.get_step_count_by_framework(),
+                },
+                "teams": {
+                    "count": len(self._team_repo.get_all()),
+                    "avg_team_size": self._team_repo.get_avg_team_size(),
+                    "team_size_distribution": self._team_repo.get_team_sizes(),
+                },
+                "course_evaluations": {
+                    "count": len(self._course_repo.get_all()),
+                    "semesters": self._course_repo.get_semester_order(),
+                },
+            }
+
+        except Exception as e:
+            self._logger.error(f"Error creating data summary: {e}")
+            return {"error": str(e)}
 
     def get_user_ideas_steps(self, email: str) -> Dict[str, Any]:
         """
