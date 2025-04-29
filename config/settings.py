@@ -36,11 +36,11 @@ class Settings:
         self._create_directories()
 
         # File paths for data sources
-        self.USER_DATA_PATH = self.INPUT_DIR / "user.json"
-        self.IDEA_DATA_PATH = self.INPUT_DIR / "idea.json"
+        self.USER_DATA_PATH = self.INPUT_DIR / "users.json"
+        self.IDEA_DATA_PATH = self.INPUT_DIR / "ideas.json"
         self.STEP_DATA_PATH = self.INPUT_DIR / "steps.json"
         self.TEAM_DATA_PATH = self.INPUT_DIR / "de_teams.json"
-        self.COURSE_EVAL_DATA_PATH = self.INPUT_DIR / "course_evaluation.json"
+        self.COURSE_EVAL_DATA_PATH = self.INPUT_DIR / "course_evaluations.json"
         self.CATEGORIZED_IDEAS_PATH = self.INPUT_DIR / "categorized_ideas.json"
 
         # Course ID for primary analysis

@@ -129,7 +129,7 @@ class DataRepository:
             "users.json": (self._user_repo, "users"),
             "ideas.json": (self._idea_repo, "ideas"),
             "steps.json": (self._step_repo, "steps"),
-            "de_team_user.json": (self._team_repo, "teams"),
+            "de_teams.json": (self._team_repo, "teams"),
             "course_evaluations.json": (self._course_repo, "course_evaluations"),
         }
 

@@ -11,12 +11,12 @@ from pathlib import Path
 import json
 from datetime import datetime
 
-from data.data_repository import DataRepository
-from data.models.enums import FrameworkType, Semester, UserEngagementLevel
-from analyzers.engagement_analyzer import EngagementAnalyzer
-from analyzers.framework_analyzer import FrameworkAnalyzer
-from analyzers.learning_analyzer import LearningAnalyzer
-from analyzers.team_analyzer import TeamAnalyzer
+from src.data.data_repository import DataRepository
+from src.data.models.enums import FrameworkType, Semester, UserEngagementLevel
+from src.analyzers.engagement_analyzer import EngagementAnalyzer
+from src.analyzers.framework_analyzer import FrameworkAnalyzer
+from src.analyzers.learning_analyzer import LearningAnalyzer
+from src.analyzers.team_analyzer import TeamAnalyzer
 
 
 class AnalyzerManager:
