@@ -27,7 +27,8 @@ import functools
 
 from pydantic import BaseModel
 
-from src.data.models.base_model import ObjectId
+from src.data.models import ObjectId
+from src.data.db import InMemoryDatabase, InMemoryCollection
 
 # Type variable for the model type
 T = TypeVar("T", bound=BaseModel)
@@ -309,6 +310,7 @@ class BaseRepository(Generic[T], ABC):
             if isinstance(data, list):
                 if data:
                     collection.insert_many(data)
+                    print(f"DataRepository - Data loaded: {len(data)} records")
                     return len(data)
             else:
                 # Single document

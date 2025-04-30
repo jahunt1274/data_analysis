@@ -12,12 +12,16 @@ from typing import Dict, List, Optional, Any
 
 # Future implementation for settings
 from config.settings import Settings
-from src.data.repositories.user_repository import UserRepository
-from src.data.repositories.idea_repository import IdeaRepository
-from src.data.repositories.step_repository import StepRepository
-from src.data.repositories.team_repository import TeamRepository
-from src.data.repositories.course_repository import CourseRepository
-from src.data.repositories.user_repository import InMemoryDatabase
+
+from src.data.repositories import (
+    UserRepository,
+    IdeaRepository,
+    StepRepository,
+    TeamRepository,
+    CourseRepository,
+)
+from src.data.db import InMemoryDatabase
+
 from src.data.models.enums import DisciplinedEntrepreneurshipStep, IdeaCategory
 
 

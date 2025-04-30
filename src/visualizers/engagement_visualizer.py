@@ -110,7 +110,10 @@ class EngagementVisualizer:
         if include_demographics and any(counts.values()):
             # Create a 2x2 figure for engagement levels and demographics
             fig = create_figure(
-                width=figsize[0], height=figsize[1] * 1.5, theme=self._theme
+                width=figsize[0],
+                height=figsize[1] * 1.5,
+                theme=self._theme,
+                create_axes=False,
             )
             # Create custom grid with different row heights
             gs = plt.GridSpec(2, 2, height_ratios=[1, 1.2], figure=fig)
@@ -122,7 +125,12 @@ class EngagementVisualizer:
             ]
         else:
             # Create a 1x2 figure for just engagement levels
-            fig = create_figure(width=figsize[0], height=figsize[1], theme=self._theme)
+            fig = create_figure(
+                width=figsize[0],
+                height=figsize[1],
+                theme=self._theme,
+                create_axes=False,
+            )
             gs = plt.GridSpec(1, 2, figure=fig)
             axs = [
                 fig.add_subplot(gs[0, 0]),  # Left
@@ -317,7 +325,9 @@ class EngagementVisualizer:
         if figsize is None:
             figsize = (self._default_figsize[0], self._default_figsize[1] * 1.5)
 
-        fig = create_figure(width=figsize[0], height=figsize[1], theme=self._theme)
+        fig = create_figure(
+            width=figsize[0], height=figsize[1], theme=self._theme, create_axes=False
+        )
 
         # Create a 3x1 grid of subplots
         gs = plt.GridSpec(3, 1, figure=fig)
@@ -488,7 +498,9 @@ class EngagementVisualizer:
         if figsize is None:
             figsize = (self._default_figsize[0], self._default_figsize[1] * 1.2)
 
-        fig = create_figure(width=figsize[0], height=figsize[1], theme=self._theme)
+        fig = create_figure(
+            width=figsize[0], height=figsize[1], theme=self._theme, create_axes=False
+        )
 
         # Create 2x2 grid
         gs = plt.GridSpec(2, 2, figure=fig)
@@ -743,7 +755,9 @@ class EngagementVisualizer:
         if not available_demographics:
             # Create simple figure using utility function
             fig = create_figure(
-                width=self._default_figsize[0], height=self._default_figsize[1]
+                width=self._default_figsize[0],
+                height=self._default_figsize[1],
+                create_axes=False,
             )
             ax = fig.add_subplot(111)
 
@@ -772,7 +786,9 @@ class EngagementVisualizer:
             )
 
         # Create figure using utility function
-        fig = create_figure(width=figsize[0], height=figsize[1], theme=self._theme)
+        fig = create_figure(
+            width=figsize[0], height=figsize[1], theme=self._theme, create_axes=False
+        )
 
         # Create grid with 2 columns
         gs = plt.GridSpec(
@@ -981,7 +997,9 @@ class EngagementVisualizer:
         if figsize is None:
             figsize = (self._default_figsize[0], self._default_figsize[1] * 1.2)
 
-        fig = create_figure(width=figsize[0], height=figsize[1], theme=self._theme)
+        fig = create_figure(
+            width=figsize[0], height=figsize[1], theme=self._theme, create_axes=False
+        )
 
         # Create 2x2 grid
         gs = plt.GridSpec(2, 2, figure=fig)
@@ -1283,7 +1301,9 @@ class EngagementVisualizer:
         if figsize is None:
             figsize = (self._default_figsize[0], self._default_figsize[1] * 1.2)
 
-        fig = create_figure(width=figsize[0], height=figsize[1], theme=self._theme)
+        fig = create_figure(
+            width=figsize[0], height=figsize[1], theme=self._theme, create_axes=False
+        )
 
         # Create 2x2 grid
         gs = plt.GridSpec(2, 2, figure=fig)
@@ -1573,7 +1593,9 @@ class EngagementVisualizer:
         if figsize is None:
             figsize = (self._default_figsize[0], self._default_figsize[1] * 1.2)
 
-        fig = create_figure(width=figsize[0], height=figsize[1], theme=self._theme)
+        fig = create_figure(
+            width=figsize[0], height=figsize[1], theme=self._theme, create_axes=False
+        )
 
         # Create 2x2 grid
         gs = plt.GridSpec(2, 2, figure=fig)
@@ -1883,7 +1905,9 @@ class EngagementVisualizer:
         if figsize is None:
             figsize = (self._default_figsize[0], self._default_figsize[1] * 1.2)
 
-        fig = create_figure(width=figsize[0], height=figsize[1], theme=self._theme)
+        fig = create_figure(
+            width=figsize[0], height=figsize[1], theme=self._theme, create_axes=False
+        )
 
         # Create 2x2 grid
         gs = plt.GridSpec(2, 2, figure=fig)
@@ -2258,7 +2282,9 @@ class EngagementVisualizer:
             figsize = (self._default_figsize[0], self._default_figsize[1] * 1.2)
 
         # Create figure using utility function
-        fig = create_figure(width=figsize[0], height=figsize[1], theme=self._theme)
+        fig = create_figure(
+            width=figsize[0], height=figsize[1], theme=self._theme, create_axes=False
+        )
 
         # Create custom grid for timeline and summary plots
         gs = plt.GridSpec(3, 3, figure=fig, height_ratios=[2, 1, 1])
@@ -3020,7 +3046,9 @@ dropout rates, and the impact of different tool versions.
         if figsize is None:
             figsize = self._default_figsize
 
-        fig = create_figure(width=figsize[0], height=figsize[1], theme=self._theme)
+        fig = create_figure(
+            width=figsize[0], height=figsize[1], theme=self._theme, create_axes=False
+        )
         ax = fig.add_subplot(111)
 
         # Prepare heatmap data based on time unit

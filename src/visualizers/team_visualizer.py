@@ -96,13 +96,19 @@ class TeamVisualizer:
         if include_demographic_breakdown and "demographic_breakdown" in engagement_data:
             # More complex figure with demographic breakdown
             fig = create_figure(
-                width=figure_size[0], height=figure_size[1] * 1.5, dpi=self._default_dpi
+                width=figure_size[0],
+                height=figure_size[1] * 1.5,
+                dpi=self._default_dpi,
+                create_axes=False,
             )
             axes = create_subplot_grid(fig, rows=3, cols=2, height_ratios=[1, 1, 1.5])
         else:
             # Simpler figure without demographic breakdown
             fig = create_figure(
-                width=figure_size[0], height=figure_size[1], dpi=self._default_dpi
+                width=figure_size[0],
+                height=figure_size[1],
+                dpi=self._default_dpi,
+                create_axes=False,
             )
             axes = create_subplot_grid(fig, rows=2, cols=2)
 
@@ -210,6 +216,7 @@ class TeamVisualizer:
             width=figure_size[0],
             height=figure_size[1] * (num_plots / 2),
             dpi=self._default_dpi,
+            create_axes=False,
         )
 
         # Create subplot grid with appropriate layout
@@ -306,7 +313,10 @@ class TeamVisualizer:
 
         # Create figure with subplots
         fig = create_figure(
-            width=figure_size[0], height=figure_size[1] * 1.5, dpi=self._default_dpi
+            width=figure_size[0],
+            height=figure_size[1] * 1.5,
+            dpi=self._default_dpi,
+            create_axes=False,
         )
         axes = create_subplot_grid(fig, rows=3, cols=2)
 
@@ -408,6 +418,7 @@ class TeamVisualizer:
             width=figure_size[0],
             height=figure_size[1] * (num_plots / 2),
             dpi=self._default_dpi,
+            create_axes=False,
         )
 
         # Create subplot grid with appropriate layout
@@ -529,6 +540,7 @@ class TeamVisualizer:
             width=figure_size[0],
             height=figure_size[1] * (num_plots / 2),
             dpi=self._default_dpi,
+            create_axes=False,
         )
 
         # Create subplot grid with appropriate layout

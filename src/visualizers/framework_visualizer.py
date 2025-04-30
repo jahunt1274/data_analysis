@@ -145,7 +145,7 @@ class FrameworkVisualizer:
 
         # Create bar chart
         fig_completion, ax_completion = create_figure(
-            *self._default_figsize, theme=self._theme
+            *self._default_figsize, theme=self._theme, create_axes=True
         )
 
         # Convert to percentage
@@ -272,7 +272,9 @@ class FrameworkVisualizer:
             figures["completion_distribution"] = fig_dist
 
         # 3. Create overall metrics visualization (summary table)
-        fig_metrics, ax_metrics = create_figure(8, 4, theme=self._theme)
+        fig_metrics, ax_metrics = create_figure(
+            8, 4, theme=self._theme, create_axes=True
+        )
 
         # Format metrics for display
         display_metrics = [
@@ -374,7 +376,7 @@ class FrameworkVisualizer:
 
         # 1. Create common patterns visualization
         fig_patterns, ax_patterns = create_figure(
-            *self._default_figsize, theme=self._theme
+            *self._default_figsize, theme=self._theme, create_axes=True
         )
 
         if pattern_data["common_patterns"]:
@@ -450,7 +452,7 @@ class FrameworkVisualizer:
             figures["common_patterns"] = fig_patterns
 
         # 2. Create progression types visualization (pie chart)
-        fig_types, ax_types = create_figure(8, 6, theme=self._theme)
+        fig_types, ax_types = create_figure(8, 6, theme=self._theme, create_axes=True)
 
         if pattern_data["progression_types"]:
             # Extract progression type data
@@ -652,7 +654,9 @@ class FrameworkVisualizer:
         figures = {} if return_figures else None
 
         # 1. Create prerequisites heatmap
-        fig_prereq, ax_prereq = create_figure(12, 10, theme=self._theme)
+        fig_prereq, ax_prereq = create_figure(
+            12, 10, theme=self._theme, create_axes=True
+        )
 
         if dependencies["prerequisites"]:
             # Prepare data for heatmap
@@ -758,7 +762,9 @@ class FrameworkVisualizer:
         try:
             import networkx as nx
 
-            fig_network, ax_network = create_figure(14, 10, theme=self._theme)
+            fig_network, ax_network = create_figure(
+                14, 10, theme=self._theme, create_axes=True
+            )
 
             if dependencies["sequential_patterns"]:
                 # Convert step dependencies to a directed graph
@@ -879,7 +885,7 @@ class FrameworkVisualizer:
             )
 
         # 3. Create correlation heatmap
-        fig_corr, ax_corr = create_figure(12, 10, theme=self._theme)
+        fig_corr, ax_corr = create_figure(12, 10, theme=self._theme, create_axes=True)
 
         if dependencies["step_correlations"]:
             # Process correlation data for visualization
@@ -1005,7 +1011,7 @@ class FrameworkVisualizer:
 
         # 1. Create dropout by step visualization
         fig_dropout, ax_dropout = create_figure(
-            *self._default_figsize, theme=self._theme
+            *self._default_figsize, theme=self._theme, create_axes=True
         )
 
         if dropout_data["dropout_by_step"]:
@@ -1090,7 +1096,9 @@ class FrameworkVisualizer:
             figures["dropout_rates"] = fig_dropout
 
         # 2. Create bottleneck visualization
-        fig_bottleneck, ax_bottleneck = create_figure(12, 6, theme=self._theme)
+        fig_bottleneck, ax_bottleneck = create_figure(
+            12, 6, theme=self._theme, create_axes=True
+        )
 
         if dropout_data["completion_bottlenecks"]:
             # Extract bottleneck data
@@ -1315,7 +1323,9 @@ class FrameworkVisualizer:
         figures = {} if return_figures else None
 
         # 1. Create interval distribution visualization
-        fig_dist, ax_dist = create_figure(*self._default_figsize, theme=self._theme)
+        fig_dist, ax_dist = create_figure(
+            *self._default_figsize, theme=self._theme, create_axes=True
+        )
 
         if interval_data["interval_distribution"]:
             # Extract distribution data
@@ -1705,7 +1715,7 @@ class FrameworkVisualizer:
 
         # 1. Create cohort metrics visualization
         fig_metrics, ax_metrics = create_figure(
-            *self._default_figsize, theme=self._theme
+            *self._default_figsize, theme=self._theme, create_axes=True
         )
 
         if cohort_data["cohort_metrics"]:
@@ -1858,7 +1868,9 @@ class FrameworkVisualizer:
             figures["cohort_metrics"] = fig_metrics
 
         # 2. Create completion trends visualization
-        fig_trends, ax_trends = create_figure(*self._default_figsize, theme=self._theme)
+        fig_trends, ax_trends = create_figure(
+            *self._default_figsize, theme=self._theme, create_axes=True
+        )
 
         if cohort_data["completion_trends"]:
             # Group trends by step
@@ -2164,7 +2176,9 @@ class FrameworkVisualizer:
         figures = {} if return_figures else None
 
         # 1. Create step utility visualization
-        fig_utility, ax_utility = create_figure(10, 8, theme=self._theme)
+        fig_utility, ax_utility = create_figure(
+            10, 8, theme=self._theme, create_axes=True
+        )
 
         if effectiveness["step_utility_metrics"]:
             # Extract utility metrics for each step
@@ -2243,7 +2257,9 @@ class FrameworkVisualizer:
             figures["step_utility"] = fig_utility
 
         # 2. Create user progression metrics visualization
-        fig_prog, ax_prog = create_figure(*self._default_figsize, theme=self._theme)
+        fig_prog, ax_prog = create_figure(
+            *self._default_figsize, theme=self._theme, create_axes=True
+        )
 
         if effectiveness["user_progression_metrics"]:
             # Extract progression metrics
@@ -2318,7 +2334,7 @@ class FrameworkVisualizer:
             # Create correlation visualization
             if "step_score_correlation" in effectiveness["framework_impact"]:
                 fig_corr, ax_corr = create_figure(
-                    *self._default_figsize, theme=self._theme
+                    *self._default_figsize, theme=self._theme, create_axes=True
                 )
 
                 # Extract correlation data
@@ -2428,7 +2444,7 @@ class FrameworkVisualizer:
             # Create engagement by step count visualization
             if "engagement_by_step_count" in effectiveness["framework_impact"]:
                 fig_engage, ax_engage = create_figure(
-                    *self._default_figsize, theme=self._theme
+                    *self._default_figsize, theme=self._theme, create_axes=True
                 )
 
                 engagement_data = effectiveness["framework_impact"][

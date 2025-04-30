@@ -7,13 +7,12 @@ including team composition analysis and comparison of team vs. individual usage 
 
 import json
 import logging
-from typing import Dict, List, Optional, Set, Tuple, Union, Any
-from pathlib import Path
+from typing import Dict, List, Optional, Set, Union
 
 from src.data.models.team_model import Team
 from src.data.models.enums import Semester
 from src.data.repositories.base_repository import BaseRepository
-from src.data.repositories.user_repository import InMemoryDatabase
+from src.data.db import InMemoryDatabase
 from src.utils.safe_ops import safe_lower
 
 

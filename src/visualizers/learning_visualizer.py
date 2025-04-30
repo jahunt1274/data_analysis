@@ -1227,7 +1227,7 @@ class LearningVisualizer:
             return result
 
         # Create figure for effectiveness score
-        fig1, ax = create_figure(width=10, height=6)
+        fig1, ax = create_figure(width=10, height=6, create_axes=True)
 
         # Create gauge chart for effectiveness score
         # This is a specialized visualization not in utils, so keep custom implementation
@@ -1371,7 +1371,7 @@ class LearningVisualizer:
 
         # Create figure for recommendations if available
         if recommendations:
-            fig3, ax = create_figure(width=14, height=10)
+            fig3, ax = create_figure(width=14, height=10, create_axes=True)
 
             # Disable axis
             ax.axis("off")
@@ -2033,7 +2033,7 @@ class LearningVisualizer:
             # This is a specialized visualization that doesn't directly map to utility functions,
             # so we'll use a custom approach
 
-            fig2, ax = create_figure(width=12, height=8)
+            fig2, ax = create_figure(width=12, height=8, create_axes=True)
 
             # Prepare data
             all_steps = []
@@ -2169,7 +2169,7 @@ class LearningVisualizer:
             completion_bottlenecks = bottlenecks.get("completion_bottlenecks", [])
 
             if completion_bottlenecks:
-                fig3, ax = create_figure(width=14, height=8)
+                fig3, ax = create_figure(width=14, height=8, create_axes=True)
 
                 # Extract steps and connections
                 steps = set()

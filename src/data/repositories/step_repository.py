@@ -19,7 +19,7 @@ from src.data.models.enums import (
     StartupTacticsStep,
 )
 from src.data.repositories.base_repository import BaseRepository
-from src.data.repositories.user_repository import InMemoryDatabase
+from src.data.db import InMemoryDatabase
 
 
 class StepRepository(BaseRepository[Step]):

@@ -17,7 +17,7 @@ from src.data.models.course_model import (
 )
 from src.data.models.enums import Semester, ToolVersion
 from src.data.repositories.base_repository import BaseRepository
-from src.data.repositories.user_repository import InMemoryDatabase
+from src.data.db import InMemoryDatabase
 
 from src.utils.safe_ops import safe_lower
 

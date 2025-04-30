@@ -12,11 +12,13 @@ import json
 from datetime import datetime
 
 from src.data.data_repository import DataRepository
-from src.data.models.enums import FrameworkType, Semester, UserEngagementLevel
-from src.analyzers.engagement_analyzer import EngagementAnalyzer
-from src.analyzers.framework_analyzer import FrameworkAnalyzer
-from src.analyzers.learning_analyzer import LearningAnalyzer
-from src.analyzers.team_analyzer import TeamAnalyzer
+from src.data.models import FrameworkType, Semester, UserEngagementLevel
+from src.analyzers import (
+    EngagementAnalyzer,
+    FrameworkAnalyzer,
+    LearningAnalyzer,
+    TeamAnalyzer,
+)
 
 
 class AnalyzerManager:

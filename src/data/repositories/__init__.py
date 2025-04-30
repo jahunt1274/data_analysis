@@ -6,10 +6,11 @@ accessing and analyzing the static JetPack/Orbit tool usage data.
 """
 
 from .base_repository import BaseRepository
-from repositories.idea_repository import IdeaRepository
-from repositories.step_repository import StepRepository
-from repositories.team_repository import TeamRepository
-from repositories.user_repository import UserRepository
+from .course_repository import CourseRepository
+from .idea_repository import IdeaRepository
+from .step_repository import StepRepository
+from .team_repository import TeamRepository
+from .user_repository import UserRepository
 
 __all__ = [
     "BaseRepository",
