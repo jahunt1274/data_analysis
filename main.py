@@ -20,16 +20,12 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional, List, Union, Tuple
 
-# Import configuration
 from config.settings import Settings
-
-# Import coordinating modules
 from src.data.data_repository import DataRepository
 from src.analyzers.analyzer_manager import AnalyzerManager
 from src.visualizers.visualization_manager import VisualizationManager
-
-# Import model enums for CLI arguments
-from src.data.models.enums import FrameworkType, Semester, MetricType
+from src.data.models.enums import FrameworkType, Semester
+from src.utils import FileManager
 
 
 class AnalysisApp:
@@ -267,6 +263,9 @@ class AnalysisApp:
         # Initialize settings with optional config file
         self.settings = Settings(config_path=self.args.config)
 
+        # Initialize file manager
+        self.file_manager = self.settings.get_file_manager()
+
         # Override settings from command line arguments if provided
         if self.args.data_dir:
             self.logger.info(
@@ -275,6 +274,7 @@ class AnalysisApp:
             # Here you might want to update settings if needed
 
         if self.args.output_dir:
+            file_manager = FileManager(base_dir=self.args.output_dir)
             self.logger.info(
                 f"Using output directory from arguments: {self.args.output_dir}"
             )
@@ -293,6 +293,7 @@ class AnalysisApp:
             # Initialize data repository
             self.logger.info("Initializing data repository")
             self.data_repository = DataRepository(self.settings)
+            # self.data_repository.connect()
 
             # Load data
             if self.args.data_dir:

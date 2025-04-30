@@ -263,6 +263,7 @@ def create_figure(
     dpi: int = 100,
     size_preset: Optional[str] = None,
     theme: str = "default",
+    create_axes: bool = True
 ) -> Figure:
     """
     Create a matplotlib figure with consistent styling.
@@ -273,6 +274,7 @@ def create_figure(
         dpi: Figure resolution (dots per inch)
         size_preset: Optional preset size ('standard', 'wide', 'tall', 'presentation')
         theme: Theme name (default, dark, print)
+        create_axes: Whether to create and return a default axes object
 
     Returns:
         Figure: Configured matplotlib figure
@@ -295,6 +297,10 @@ def create_figure(
 
     # Apply theme
     apply_theme(theme)
+
+    if create_axes:
+        ax = fig.add_subplot(111)
+        return fig, ax
 
     return fig
 

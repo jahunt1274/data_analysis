@@ -296,3 +296,89 @@ def categorize_session_lengths(sessions: List[Dict[str, Any]]) -> Dict[str, int]
             categories["over_3hr"] += 1
 
     return categories
+
+"""
+Utility functions for datetime standardization.
+
+This module provides helper functions to ensure all datetime objects
+are consistently either timezone-aware or timezone-naive.
+"""
+
+from datetime import datetime, timezone
+
+def standardize_datetime(dt):
+    """
+    Standardize a datetime object to be timezone-naive in UTC.
+    
+    If the datetime is timezone-aware, convert to UTC and remove timezone info.
+    If the datetime is already timezone-naive, return as is.
+    
+    Args:
+        dt: A datetime object or None
+        
+    Returns:
+        datetime: A timezone-naive datetime in UTC or None if input is None
+    """
+    if dt is None:
+        return None
+    
+    if not isinstance(dt, datetime):
+        return dt
+        
+    # If timezone aware, convert to UTC and make naive
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    
+    # Already naive, return as is
+    return dt
+
+def compare_datetimes(dt1, dt2):
+    """
+    Safely compare two datetime objects.
+    
+    Ensures both datetimes are standardized before comparison.
+    
+    Args:
+        dt1: First datetime object
+        dt2: Second datetime object
+        
+    Returns:
+        int: -1 if dt1 < dt2, 0 if dt1 == dt2, 1 if dt1 > dt2
+        or None if either input is None
+    """
+    if dt1 is None or dt2 is None:
+        return None
+        
+    std_dt1 = standardize_datetime(dt1)
+    std_dt2 = standardize_datetime(dt2)
+    
+    if std_dt1 < std_dt2:
+        return -1
+    elif std_dt1 > std_dt2:
+        return 1
+    else:
+        return 0
+
+def date_in_range(dt, start, end):
+    """
+    Check if a date is within a range.
+    
+    All datetimes are standardized before comparison.
+    
+    Args:
+        dt: The datetime to check
+        start: Start datetime (inclusive)
+        end: End datetime (inclusive)
+        
+    Returns:
+        bool: True if dt is within the range, False otherwise
+        or None if dt is None
+    """
+    if dt is None:
+        return None
+        
+    std_dt = standardize_datetime(dt)
+    std_start = standardize_datetime(start)
+    std_end = standardize_datetime(end)
+    
+    return std_start <= std_dt <= std_end

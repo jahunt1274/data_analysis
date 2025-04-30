@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+from src.utils.file_manager import FileManager
+
 
 class Settings:
     """
@@ -31,9 +33,6 @@ class Settings:
         self.PROCESSED_DATA_DIR = self.INPUT_DIR / "processed"
         self.OUTPUT_DIR = self.BASE_DIR / "output"
         self.LOG_DIR = self.BASE_DIR / "logs"
-
-        # Ensure directories exist
-        self._create_directories()
 
         # File paths for data sources
         self.USER_DATA_PATH = self.INPUT_DIR / "users.json"
@@ -94,12 +93,9 @@ class Settings:
         # Override with environment variables if set
         self._load_from_env()
 
-    def _create_directories(self) -> None:
-        """Create required directories if they don't exist."""
-        self.INPUT_DIR.mkdir(exist_ok=True, parents=True)
-        self.PROCESSED_DATA_DIR.mkdir(exist_ok=True, parents=True)
-        self.OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
-        self.LOG_DIR.mkdir(exist_ok=True, parents=True)
+    def get_file_manager(self) -> "FileManager":
+        """Get a configured FileManager instance."""
+        return FileManager(base_dir=self.OUTPUT_DIR)
 
     def _load_from_file(self, config_path: str) -> None:
         """
@@ -213,41 +209,7 @@ class Settings:
                     result[key] = value
         return result
 
-    def save_to_file(self, file_path: str) -> None:
-        """
-        Save current settings to a file.
-
-        Args:
-            file_path: Path to save settings
-        """
-        settings_dict = self.to_dict()
-        file_path = Path(file_path)
-
-        # Save based on file extension
-        if file_path.suffix.lower() == ".json":
-            import json
-
-            with open(file_path, "w") as f:
-                json.dump(settings_dict, f, indent=4)
-        elif file_path.suffix.lower() in [".yml", ".yaml"]:
-            try:
-                import yaml
-
-                with open(file_path, "w") as f:
-                    yaml.dump(settings_dict, f, default_flow_style=False)
-            except ImportError:
-                print("PyYAML not installed, saving as JSON instead")
-                with open(file_path.with_suffix(".json"), "w") as f:
-                    import json
-
-                    json.dump(settings_dict, f, indent=4)
-        else:
-            print(f"Unsupported file format: {file_path.suffix}, saving as JSON")
-            with open(file_path.with_suffix(".json"), "w") as f:
-                import json
-
-                json.dump(settings_dict, f, indent=4)
-
+    # Unused?
     def get(self, key: str, default: Any = None) -> Any:
         """
         Get a setting value by key.
